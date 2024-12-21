@@ -7,7 +7,7 @@
 #
 # 主机: 127.0.0.1 (MySQL 5.6.39)
 # 数据库: group_buy_market
-# 生成时间: 2024-12-21 03:30:29 +0000
+# 生成时间: 2024-12-21 07:28:50 +0000
 # ************************************************************
 
 
@@ -68,7 +68,7 @@ DROP TABLE IF EXISTS `group_buy_discount`;
 
 CREATE TABLE `group_buy_discount` (
   `id` bigint(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
-  `discount_id` int(8) NOT NULL COMMENT '折扣ID',
+  `discount_id` varchar(8) NOT NULL COMMENT '折扣ID',
   `discount_name` varchar(64) NOT NULL COMMENT '折扣标题',
   `discount_desc` varchar(256) NOT NULL COMMENT '折扣描述',
   `discount_type` tinyint(1) NOT NULL DEFAULT '0' COMMENT '折扣类型（0:base、1:tag）',
@@ -86,7 +86,7 @@ LOCK TABLES `group_buy_discount` WRITE;
 
 INSERT INTO `group_buy_discount` (`id`, `discount_id`, `discount_name`, `discount_desc`, `discount_type`, `market_plan`, `market_expr`, `tag_id`, `create_time`, `update_time`)
 VALUES
-	(1,25120207,'测试优惠','测试优惠',0,'ZJ','20',NULL,'2024-12-07 10:20:15','2024-12-21 11:13:32');
+	(1,'25120207','测试优惠','测试优惠',0,'ZJ','20',NULL,'2024-12-07 10:20:15','2024-12-21 11:13:32');
 
 /*!40000 ALTER TABLE `group_buy_discount` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -106,7 +106,8 @@ CREATE TABLE `sku` (
   `original_price` decimal(10,2) NOT NULL COMMENT '商品价格',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_goods_id` (`goods_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品信息';
 
 LOCK TABLES `sku` WRITE;
