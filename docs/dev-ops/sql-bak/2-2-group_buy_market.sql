@@ -7,7 +7,7 @@
 #
 # 主机: 127.0.0.1 (MySQL 5.6.39)
 # 数据库: group_buy_market
-# 生成时间: 2024-12-21 03:30:29 +0000
+# 生成时间: 2024-12-07 03:48:52 +0000
 # ************************************************************
 
 
@@ -86,37 +86,9 @@ LOCK TABLES `group_buy_discount` WRITE;
 
 INSERT INTO `group_buy_discount` (`id`, `discount_id`, `discount_name`, `discount_desc`, `discount_type`, `market_plan`, `market_expr`, `tag_id`, `create_time`, `update_time`)
 VALUES
-	(1,25120207,'测试优惠','测试优惠',0,'ZJ','20',NULL,'2024-12-07 10:20:15','2024-12-21 11:13:32');
+	(1,25120207,'测试优惠','测试优惠',0,'ZJ','20',NULL,'2024-12-07 10:20:15','2024-12-07 10:20:15');
 
 /*!40000 ALTER TABLE `group_buy_discount` ENABLE KEYS */;
-UNLOCK TABLES;
-
-
-# 转储表 sku
-# ------------------------------------------------------------
-
-DROP TABLE IF EXISTS `sku`;
-
-CREATE TABLE `sku` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
-  `source` varchar(8) NOT NULL COMMENT '渠道',
-  `channel` varchar(8) NOT NULL COMMENT '来源',
-  `goods_id` varchar(16) NOT NULL COMMENT '商品ID',
-  `goods_name` varchar(128) NOT NULL COMMENT '商品名称',
-  `original_price` decimal(10,2) NOT NULL COMMENT '商品价格',
-  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品信息';
-
-LOCK TABLES `sku` WRITE;
-/*!40000 ALTER TABLE `sku` DISABLE KEYS */;
-
-INSERT INTO `sku` (`id`, `source`, `channel`, `goods_id`, `goods_name`, `original_price`, `create_time`, `update_time`)
-VALUES
-	(1,'s01','c01','9890001','《手写MyBatis：渐进式源码实践》',100.00,'2024-12-21 11:10:06','2024-12-21 11:10:06');
-
-/*!40000 ALTER TABLE `sku` ENABLE KEYS */;
 UNLOCK TABLES;
 
 
