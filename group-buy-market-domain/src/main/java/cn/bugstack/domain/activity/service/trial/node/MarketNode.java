@@ -3,7 +3,6 @@ package cn.bugstack.domain.activity.service.trial.node;
 import cn.bugstack.domain.activity.model.entity.MarketProductEntity;
 import cn.bugstack.domain.activity.model.entity.TrialBalanceEntity;
 import cn.bugstack.domain.activity.model.valobj.GroupBuyActivityDiscountVO;
-import cn.bugstack.domain.activity.model.valobj.SCSkuActivityVO;
 import cn.bugstack.domain.activity.model.valobj.SkuVO;
 import cn.bugstack.domain.activity.service.discount.IDiscountCalculateService;
 import cn.bugstack.domain.activity.service.trial.AbstractGroupBuyMarketSupport;
@@ -33,17 +32,15 @@ public class MarketNode extends AbstractGroupBuyMarketSupport<MarketProductEntit
 
     @Resource
     private ThreadPoolExecutor threadPoolExecutor;
-
     /**
      * <a href="https://bugstack.cn/md/road-map/spring-dependency-injection.html">Spring 注入详细说明</a>
      */
     @Resource
     private Map<String, IDiscountCalculateService> discountCalculateServiceMap;
-
-    @Resource
-    private EndNode endNode;
     @Resource
     private ErrorNode errorNode;
+    @Resource
+    private TagNode tagNode;
 
     @Override
     protected void multiThread(MarketProductEntity requestParameter, DefaultActivityStrategyFactory.DynamicContext dynamicContext) throws ExecutionException, InterruptedException, TimeoutException {
@@ -101,7 +98,7 @@ public class MarketNode extends AbstractGroupBuyMarketSupport<MarketProductEntit
             return errorNode;
         }
 
-        return endNode;
+        return tagNode;
     }
 
 }
