@@ -74,7 +74,7 @@ public class TradeRepository implements ITradeRepository {
                     .channel(payDiscountEntity.getChannel())
                     .originalPrice(payDiscountEntity.getOriginalPrice())
                     .deductionPrice(payDiscountEntity.getDeductionPrice())
-                    .payPrice(payDiscountEntity.getDeductionPrice().subtract(payDiscountEntity.getDeductionPrice()))
+                    .payPrice(payDiscountEntity.getOriginalPrice().subtract(payDiscountEntity.getDeductionPrice()))
                     .targetCount(payActivityEntity.getTargetCount())
                     .completeCount(0)
                     .lockCount(1)
