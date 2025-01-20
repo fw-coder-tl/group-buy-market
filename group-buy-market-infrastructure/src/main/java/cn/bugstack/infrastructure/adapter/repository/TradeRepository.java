@@ -102,7 +102,7 @@ public class TradeRepository implements ITradeRepository {
                 .goodsId(payDiscountEntity.getGoodsId())
                 .source(payDiscountEntity.getSource())
                 .channel(payDiscountEntity.getChannel())
-                .originalPrice(payDiscountEntity.getDeductionPrice())
+                .originalPrice(payDiscountEntity.getOriginalPrice())
                 .deductionPrice(payDiscountEntity.getDeductionPrice())
                 .status(TradeOrderStatusEnumVO.CREATE.getCode())
                 .outTradeNo(payDiscountEntity.getOutTradeNo())
