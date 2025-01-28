@@ -13,6 +13,7 @@ public enum ResponseCode {
     UN_ERROR("0001", "未知失败"),
     ILLEGAL_PARAMETER("0002", "非法参数"),
     INDEX_EXCEPTION("0003", "唯一索引冲突"),
+    UPDATE_ZERO("0004", "更新记录为0"),
 
     E0001("E0001", "不存在对应的折扣计算服务"),
     E0002("E0002", "无拼团营销配置"),
@@ -25,6 +26,7 @@ public enum ResponseCode {
     E0101("E0101", "拼团活动未生效"),
     E0102("E0102", "不在拼团活动有效时间内"),
     E0103("E0103", "当前用户参与此拼团次数已达上限"),
+
     ;
 
     private String code;

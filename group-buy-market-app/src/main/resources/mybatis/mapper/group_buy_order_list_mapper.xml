@@ -35,16 +35,28 @@
         )
     </insert>
 
-    <select id="queryGroupBuyOrderRecordByOutTradeNo" parameterType="cn.bugstack.infrastructure.dao.po.GroupBuyOrderList" resultMap="dataMap">
+    <select id="queryGroupBuyOrderRecordByOutTradeNo"
+            parameterType="cn.bugstack.infrastructure.dao.po.GroupBuyOrderList" resultMap="dataMap">
         select user_id, team_id, order_id, activity_id, start_time,
         end_time, goods_id, source, channel, original_price, deduction_price, status
         from group_buy_order_list
         where out_trade_no = #{outTradeNo} and user_id = #{userId} and status = 0
     </select>
 
-    <select id="queryOrderCountByActivityId" parameterType="cn.bugstack.infrastructure.dao.po.GroupBuyOrderList" resultType="java.lang.Integer">
+    <select id="queryOrderCountByActivityId" parameterType="cn.bugstack.infrastructure.dao.po.GroupBuyOrderList"
+            resultType="java.lang.Integer">
         select count(id) from group_buy_order_list
         where user_id = #{userId} and activity_id = #{activityId}
+    </select>
+
+    <update id="updateOrderStatus2COMPLETE" parameterType="cn.bugstack.infrastructure.dao.po.GroupBuyOrderList">
+        update group_buy_order_list
+        set status = 1, update_time = now()
+        where out_trade_no = #{outTradeNo} and user_id = #{userId}
+    </update>
+
+    <select id="queryGroupBuyCompleteOrderOutTradeNoListByTeamId" parameterType="java.lang.String" resultType="java.lang.String">
+        select out_trade_no from group_buy_order_list where team_id = #{teamId} and status = 1
     </select>
 
 </mapper>
