@@ -5,7 +5,10 @@ import cn.bugstack.domain.trade.model.aggregate.GroupBuyTeamSettlementAggregate;
 import cn.bugstack.domain.trade.model.entity.GroupBuyActivityEntity;
 import cn.bugstack.domain.trade.model.entity.GroupBuyTeamEntity;
 import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
+import cn.bugstack.domain.trade.model.entity.NotifyTaskEntity;
 import cn.bugstack.domain.trade.model.valobj.GroupBuyProgressVO;
+
+import java.util.List;
 
 /**
  * @author Fuzhengwei bugstack.cn @小傅哥
@@ -26,8 +29,18 @@ public interface ITradeRepository {
 
     GroupBuyTeamEntity queryGroupBuyTeamByTeamId(String teamId);
 
-    void settlementMarketPayOrder(GroupBuyTeamSettlementAggregate groupBuyTeamSettlementAggregate);
+    boolean settlementMarketPayOrder(GroupBuyTeamSettlementAggregate groupBuyTeamSettlementAggregate);
 
     boolean isSCBlackIntercept(String source, String channel);
+
+    List<NotifyTaskEntity> queryUnExecutedNotifyTaskList();
+
+    List<NotifyTaskEntity> queryUnExecutedNotifyTaskList(String teamId);
+
+    int updateNotifyTaskStatusSuccess(String teamId);
+
+    int updateNotifyTaskStatusError(String teamId);
+
+    int updateNotifyTaskStatusRetry(String teamId);
 
 }
