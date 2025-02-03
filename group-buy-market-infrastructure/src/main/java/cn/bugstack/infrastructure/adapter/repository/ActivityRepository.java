@@ -229,6 +229,10 @@ public class ActivityRepository implements IActivityRepository {
         // 1. 根据活动ID查询拼团队伍
         List<GroupBuyOrderList> groupBuyOrderLists = groupBuyOrderListDao.queryInProgressUserGroupBuyOrderDetailListByActivityId(activityId);
 
+        if (null == groupBuyOrderLists || groupBuyOrderLists.isEmpty()) {
+            return new TeamStatisticVO(0, 0, 0);
+        }
+
         // 2. 过滤队伍获取 TeamId
         Set<String> teamIds = groupBuyOrderLists.stream()
                 .map(GroupBuyOrderList::getTeamId)
