@@ -10,29 +10,46 @@ thread:
         max-pool-size: 50
         keep-alive-time: 5000
         block-queue-size: 5000
+        # 当线程池中的任务队列已满，并且没有空闲线程可以执行新任务时，CallerRunsPolicy 会将任务回退到调用者线程中运行。这种策略适用于不希望丢失任务且可以接受调用者线程被阻塞的场景。
         policy: CallerRunsPolicy
 
-# 数据库配置
-#spring:
-#  datasource:
-#    username: root
-#    password: 123456
-#    url: jdbc:mysql://127.0.0.1:3306/xfg_frame_archetype?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
-#    driver-class-name: com.mysql.cj.jdbc.Driver
-#  hikari:
-#    pool-name: Retail_HikariCP
-#    minimum-idle: 15 #最小空闲连接数量
-#    idle-timeout: 180000 #空闲连接存活最大时间，默认600000（10分钟）
-#    maximum-pool-size: 25 #连接池最大连接数，默认是10
-#    auto-commit: true  #此属性控制从池返回的连接的默认自动提交行为,默认值：true
-#    max-lifetime: 1800000 #此属性控制池中连接的最长生命周期，值0表示无限生命周期，默认1800000即30分钟
-#    connection-timeout: 30000 #数据库连接超时时间,默认30秒，即30000
-#    connection-test-query: SELECT 1
-#  type: com.zaxxer.hikari.HikariDataSource
+# 数据库配置；启动时配置数据库资源信息
+spring:
+  datasource:
+    username: root
+    password: 123456
+    url: jdbc:mysql://127.0.0.1:13306/group_buy_market?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  hikari:
+    pool-name: Retail_HikariCP
+    minimum-idle: 15 #最小空闲连接数量
+    idle-timeout: 180000 #空闲连接存活最大时间，默认600000（10分钟）
+    maximum-pool-size: 25 #连接池最大连接数，默认是10
+    auto-commit: true  #此属性控制从池返回的连接的默认自动提交行为,默认值：true
+    max-lifetime: 1800000 #此属性控制池中连接的最长生命周期，值0表示无限生命周期，默认1800000即30分钟
+    connection-timeout: 30000 #数据库连接超时时间,默认30秒，即30000
+    connection-test-query: SELECT 1
+  type: com.zaxxer.hikari.HikariDataSource
 
-#mybatis:
-#  mapper-locations: classpath:/mybatis/mapper/*.xml
-#  config-location:  classpath:/mybatis/config/mybatis-config.xml
+# MyBatis 配置【如需使用记得打开】
+mybatis:
+  mapper-locations: classpath:/mybatis/mapper/*.xml
+  config-location:  classpath:/mybatis/config/mybatis-config.xml
+
+# Redis
+redis:
+  sdk:
+    config:
+      host: 117.72.38.125
+      port: 16379
+      pool-size: 10
+      min-idle-size: 5
+      idle-timeout: 30000
+      connect-timeout: 5000
+      retry-attempts: 3
+      retry-interval: 1000
+      ping-interval: 60000
+      keep-alive: true
 
 # 日志
 logging:
