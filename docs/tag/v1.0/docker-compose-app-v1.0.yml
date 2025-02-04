@@ -73,7 +73,7 @@ services:
     environment:
       - PMA_HOST=mysql
       - PMA_PORT=3306
-      - MYSQL_ROOT_PASSWORD=123qwe!@#QWE
+      - MYSQL_ROOT_PASSWORD=123456
     depends_on:
       mysql:
         condition: service_healthy
