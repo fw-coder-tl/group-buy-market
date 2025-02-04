@@ -147,7 +147,7 @@ LOCK TABLES `group_buy_activity` WRITE;
 
 INSERT INTO `group_buy_activity` (`id`, `activity_id`, `activity_name`, `discount_id`, `group_type`, `take_limit_count`, `target`, `valid_time`, `status`, `start_time`, `end_time`, `tag_id`, `tag_scope`, `create_time`, `update_time`)
 VALUES
-	(1,100123,'手写MyBatis拼团活动','25120208',0,1,3,600,1,'2024-12-07 10:19:40','2026-12-07 10:19:40',NULL,NULL,'2024-12-07 10:19:40','2025-02-04 09:19:54');
+	(1,100123,'手写MyBatis拼团活动','25120208',0,1,3,600,1,'2024-12-07 10:19:40','2099-12-07 10:19:40',NULL,NULL,'2024-12-07 10:19:40','2025-02-04 09:19:54');
 
 /*!40000 ALTER TABLE `group_buy_activity` ENABLE KEYS */;
 UNLOCK TABLES;
