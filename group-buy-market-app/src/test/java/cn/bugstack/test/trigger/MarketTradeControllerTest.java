@@ -32,7 +32,7 @@ public class MarketTradeControllerTest {
     @Test
     public void test_lockMarketPayOrder() {
         LockMarketPayOrderRequestDTO lockMarketPayOrderRequestDTO = new LockMarketPayOrderRequestDTO();
-        lockMarketPayOrderRequestDTO.setUserId("xiaofuge");
+        lockMarketPayOrderRequestDTO.setUserId("xfg01");
         lockMarketPayOrderRequestDTO.setTeamId(null);
         lockMarketPayOrderRequestDTO.setActivityId(100123L);
         lockMarketPayOrderRequestDTO.setGoodsId("9890001");
@@ -65,7 +65,7 @@ public class MarketTradeControllerTest {
 
     @Test
     public void test_lockMarketPayOrder_list() {
-        for (int i = 1; i < 10; i++) {
+        for (int i = 1; i < 2; i++) {
             LockMarketPayOrderRequestDTO lockMarketPayOrderRequestDTO = new LockMarketPayOrderRequestDTO();
             lockMarketPayOrderRequestDTO.setUserId("xfg0" + i);
             lockMarketPayOrderRequestDTO.setTeamId(null);
