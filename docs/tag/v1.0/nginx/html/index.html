@@ -54,6 +54,21 @@
 </div>
 <script src="js/index.js"></script>
 <script>
+function obfuscateUserId(userId) {
+    if (userId.length <= 4) {
+      // 如果 userId 的长度小于或等于 4，则无需替换任何字符
+      return userId;
+    } else {
+      // 获取前两位和后两位
+      const start = userId.slice(0, 2);
+      const end = userId.slice(-2);
+      // 计算中间部分应该被替换成多少个 *
+      const middle = '*'.repeat(userId.length - 4);
+      // 返回成功替换后的字符串
+      return `${start}${middle}${end}`;
+    }
+  }
+
 document.addEventListener('DOMContentLoaded', function() {
     // 根据测试诉求，设置基础地址；部署时，设置为你的公网IP地址，不要使用 127.0.0.1 这样的地址
     var baseUrl = "http://117.72.115.188:8091";
@@ -114,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 groupList.innerHTML += `
                     <div class="group-item">
                         <div>
-                            <div class="user-info" data-teamId="${team.teamId}">${team.userId}</div>
+                            <div class="user-info" data-teamId="${team.teamId}">${obfuscateUserId(team.userId)}</div>
                             <div class="group-status">
                                 <span>组队仅剩${remaining}人，拼单即将结束</span>
                                 <span class="countdown">${team.validTimeCountdown}</span>
