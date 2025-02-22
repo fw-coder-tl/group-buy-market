@@ -15,7 +15,7 @@ services:
     privileged: true
   # 部署后端项目 - 小型支付商城
   s-pay-mall:
-    image: fuzhengwei/s-pay-mall-ddd-market-app:2.0
+    image: fuzhengwei/s-pay-mall-ddd-app:2.0
     container_name: s-pay-mall
     restart: on-failure
     ports:
