@@ -26,7 +26,7 @@ services:
       - APP_CONFIG_GROUP_BUY_MARKET_API_URL=http://117.72.115.188
       - APP_CONFIG_GROUP_BUY_MARKET_NOTIFY_URL=http://117.72.115.188/api/v1/alipay/group_buy_notify
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=RT#$re34oop__9opKKjl788
+      - SPRING_DATASOURCE_PASSWORD=b8B6llKKoo00oo00Il__
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/s-pay-mall-ddd-market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
@@ -59,7 +59,7 @@ services:
       - TZ=PRC
       - SERVER_PORT=8091
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=RT#$re34oop__9opKKjl788
+      - SPRING_DATASOURCE_PASSWORD=b8B6llKKoo00oo00Il__
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/group_buy_market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
@@ -85,7 +85,7 @@ services:
       - TZ=PRC
       - SERVER_PORT=8091
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=RT#$re34oop__9opKKjl788
+      - SPRING_DATASOURCE_PASSWORD=b8B6llKKoo00oo00Il__
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/group_buy_market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
@@ -108,7 +108,7 @@ services:
     restart: always
     environment:
       TZ: Asia/Shanghai
-      MYSQL_ROOT_PASSWORD: RT#$re34oop__9opKKjl788
+      MYSQL_ROOT_PASSWORD: b8B6llKKoo00oo00Il__
     ports:
       - "13306:3306"
     volumes:
@@ -133,7 +133,7 @@ services:
     environment:
       - PMA_HOST=mysql
       - PMA_PORT=3306
-      - MYSQL_ROOT_PASSWORD=RT#$re34oop__9opKKjl788
+      - MYSQL_ROOT_PASSWORD=b8B6llKKoo00oo00Il__
     depends_on:
       mysql:
         condition: service_healthy
