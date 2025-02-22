@@ -27,7 +27,7 @@ services:
       - APP_CONFIG_GROUP-BUY-MARKET_NOTIFY-URL=http://117.72.115.188/api/v1/alipay/group_buy_notify
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=123456
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/group_buy_market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/s-pay-mall-ddd-market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
       - WEIXIN_CONFIG_ORIGINALID=gh_e067c267e056

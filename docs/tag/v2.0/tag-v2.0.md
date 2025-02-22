@@ -5,6 +5,12 @@ git clone -b tag-v2.0 https://gitcode.net/KnowledgePlanet/s-pay-mall-ddd-market.
 git clone -b tag-v2.0 https://gitcode.net/KnowledgePlanet/group-buy-market.git
 ```
 
+## 2. 更新代码
+
+```java
+git pull origin tag-v2.0
+```
+
 ## 2. 打包代码
 
 ```java
