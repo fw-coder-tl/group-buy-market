@@ -23,20 +23,20 @@ services:
     environment:
       - TZ=PRC
       - SERVER_PORT=8080
-      - APP_CONFIG_GROUP-BUY-MARKET_API-URL=http://117.72.115.188
-      - APP_CONFIG_GROUP-BUY-MARKET_NOTIFY-URL=http://117.72.115.188/api/v1/alipay/group_buy_notify
+      - APP_CONFIG_GROUP_BUY_MARKET_API_URL=http://117.72.115.188
+      - APP_CONFIG_GROUP_BUY_MARKET_NOTIFY_URL=http://117.72.115.188/api/v1/alipay/group_buy_notify
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=123456
+      - SPRING_DATASOURCE_PASSWORD=RT#$re34oop__9opKKjl788
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/s-pay-mall-ddd-market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
       - WEIXIN_CONFIG_ORIGINALID=gh_e067c267e056
       - WEIXIN_CONFIG_TOKEN=b8b6
-      - WEIXIN_CONFIG_APP-ID=wx5a228ff69e28a91f
-      - WEIXIN_CONFIG_APP-SECRET=0bea03aa1310bac050aae79dd8703928
+      - WEIXIN_CONFIG_APP_ID=wx5a228ff69e28a91f
+      - WEIXIN_CONFIG_APP_SECRET=0bea03aa1310bac050aae79dd8703928
       - WEIXIN_CONFIG_TEMPLATE_ID=RbEZ2jo47dQmF4A7_Ku7RsDy1x_5by6bk1Ox6rPCl4Y
-      - alipay_notify_url=http://xfg-studio.natapp1.cc/api/v1/alipay/alipay_notify_url
-      - alipay_return_url=http://117.72.115.188
+      - ALIPAY_NOTIFY_URL=http://xfg-studio.natapp1.cc/api/v1/alipay/alipay_notify_url
+      - ALIPAY_RETURN_URL=http://117.72.115.188
     volumes:
       - ./log:/data/log
     logging:
@@ -59,7 +59,7 @@ services:
       - TZ=PRC
       - SERVER_PORT=8091
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=123456
+      - SPRING_DATASOURCE_PASSWORD=RT#$re34oop__9opKKjl788
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/group_buy_market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
@@ -85,7 +85,7 @@ services:
       - TZ=PRC
       - SERVER_PORT=8091
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=123456
+      - SPRING_DATASOURCE_PASSWORD=RT#$re34oop__9opKKjl788
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/group_buy_market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
@@ -108,7 +108,7 @@ services:
     restart: always
     environment:
       TZ: Asia/Shanghai
-      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_ROOT_PASSWORD: RT#$re34oop__9opKKjl788
     ports:
       - "13306:3306"
     volumes:
@@ -133,7 +133,7 @@ services:
     environment:
       - PMA_HOST=mysql
       - PMA_PORT=3306
-      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_ROOT_PASSWORD=RT#$re34oop__9opKKjl788
     depends_on:
       mysql:
         condition: service_healthy
