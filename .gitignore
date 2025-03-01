@@ -38,3 +38,4 @@ build/
 .DS_Store
 /group-buy-market-app/data/
 /data/
+/.idea/
