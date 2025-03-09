@@ -122,8 +122,8 @@
     var sPayMallUrl = "http://117.72.115.188";
 
     document.addEventListener("DOMContentLoaded", function() {
-
-         const fpPromise = import('https://openfpcdn.io/fingerprintjs/v4')
+         // ./js/v4.js 替换 https://openfpcdn.io/fingerprintjs/v4
+         const fpPromise = import('./js/v4.js')
             .then(FingerprintJS => FingerprintJS.load());
 
          fpPromise
