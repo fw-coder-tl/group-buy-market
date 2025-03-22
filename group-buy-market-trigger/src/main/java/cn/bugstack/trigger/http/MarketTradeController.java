@@ -11,6 +11,8 @@ import cn.bugstack.domain.activity.model.valobj.TeamStatisticVO;
 import cn.bugstack.domain.activity.service.IIndexGroupBuyMarketService;
 import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.GroupBuyProgressVO;
+import cn.bugstack.domain.trade.model.valobj.NotifyConfigVO;
+import cn.bugstack.domain.trade.model.valobj.NotifyTypeEnumVO;
 import cn.bugstack.domain.trade.service.ITradeLockOrderService;
 import cn.bugstack.domain.trade.service.ITradeSettlementOrderService;
 import cn.bugstack.types.enums.ResponseCode;
@@ -58,11 +60,11 @@ public class MarketTradeController implements IMarketTradeService {
             Long activityId = requestDTO.getActivityId();
             String outTradeNo = requestDTO.getOutTradeNo();
             String teamId = requestDTO.getTeamId();
-            String notifyUrl = requestDTO.getNotifyUrl();
+            LockMarketPayOrderRequestDTO.NotifyConfigVO notifyConfigVO = requestDTO.getNotifyConfigVO();
 
             log.info("营销交易锁单:{} LockMarketPayOrderRequestDTO:{}", userId, JSON.toJSONString(requestDTO));
 
-            if (StringUtils.isBlank(userId) || StringUtils.isBlank(source) || StringUtils.isBlank(channel) || StringUtils.isBlank(goodsId) || null == activityId || StringUtils.isBlank(notifyUrl)) {
+            if (StringUtils.isBlank(userId) || StringUtils.isBlank(source) || StringUtils.isBlank(channel) || StringUtils.isBlank(goodsId) || null == activityId || ("HTTP".equals(notifyConfigVO.getNotifyType()) && StringUtils.isBlank(notifyConfigVO.getNotifyUrl()))) {
                 return Response.<LockMarketPayOrderResponseDTO>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info(ResponseCode.ILLEGAL_PARAMETER.getInfo())
@@ -140,7 +142,13 @@ public class MarketTradeController implements IMarketTradeService {
                             .deductionPrice(trialBalanceEntity.getDeductionPrice())
                             .payPrice(trialBalanceEntity.getPayPrice())
                             .outTradeNo(outTradeNo)
-                            .notifyUrl(notifyUrl)
+                            .notifyConfigVO(
+                                    // 构建回调通知对象
+                                    NotifyConfigVO.builder()
+                                            .notifyType(NotifyTypeEnumVO.valueOf(notifyConfigVO.getNotifyType()))
+                                            .notifyMQ(notifyConfigVO.getNotifyMQ())
+                                            .notifyUrl(notifyConfigVO.getNotifyUrl())
+                                            .build())
                             .build());
 
             log.info("交易锁单记录(新):{} marketPayOrderEntity:{}", userId, JSON.toJSONString(marketPayOrderEntity));
@@ -195,11 +203,11 @@ public class MarketTradeController implements IMarketTradeService {
                     .build());
 
             SettlementMarketPayOrderResponseDTO responseDTO = SettlementMarketPayOrderResponseDTO.builder()
-                        .userId(tradePaySettlementEntity.getUserId())
-                        .teamId(tradePaySettlementEntity.getTeamId())
-                        .activityId(tradePaySettlementEntity.getActivityId())
-                        .outTradeNo(tradePaySettlementEntity.getOutTradeNo())
-                        .build();
+                    .userId(tradePaySettlementEntity.getUserId())
+                    .teamId(tradePaySettlementEntity.getTeamId())
+                    .activityId(tradePaySettlementEntity.getActivityId())
+                    .outTradeNo(tradePaySettlementEntity.getOutTradeNo())
+                    .build();
 
             // 返回结果
             Response<SettlementMarketPayOrderResponseDTO> response = Response.<SettlementMarketPayOrderResponseDTO>builder()
@@ -217,7 +225,7 @@ public class MarketTradeController implements IMarketTradeService {
                     .code(e.getCode())
                     .info(e.getInfo())
                     .build();
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.error("营销交易组队结算失败:{} LockMarketPayOrderRequestDTO:{}", requestDTO.getUserId(), JSON.toJSONString(requestDTO), e);
             return Response.<SettlementMarketPayOrderResponseDTO>builder()
                     .code(ResponseCode.UN_ERROR.getCode())

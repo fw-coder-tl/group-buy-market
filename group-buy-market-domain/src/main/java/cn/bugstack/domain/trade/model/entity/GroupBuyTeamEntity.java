@@ -1,5 +1,7 @@
 package cn.bugstack.domain.trade.model.entity;
 
+import cn.bugstack.domain.trade.model.valobj.NotifyConfigVO;
+import cn.bugstack.domain.trade.model.valobj.NotifyTypeEnumVO;
 import cn.bugstack.types.enums.GroupBuyOrderEnumVO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,7 +37,7 @@ public class GroupBuyTeamEntity {
     private Date validStartTime;
     /** 拼团结束时间 - 拼团有效时长 */
     private Date validEndTime;
-    /** 回调地址 */
-    private String notifyUrl;
+    /** 回调配置 */
+    private NotifyConfigVO notifyConfigVO;
 
 }
