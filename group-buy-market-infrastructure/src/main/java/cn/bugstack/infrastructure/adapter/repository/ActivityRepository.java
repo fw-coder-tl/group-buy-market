@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  * @create 2024-12-21 10:10
  */
 @Repository
-public class ActivityRepository implements IActivityRepository {
+public class ActivityRepository extends AbstractRepository implements IActivityRepository {
 
     @Resource
     private IGroupBuyActivityDao groupBuyActivityDao;
@@ -41,12 +41,16 @@ public class ActivityRepository implements IActivityRepository {
 
     @Override
     public GroupBuyActivityDiscountVO queryGroupBuyActivityDiscountVO(Long activityId) {
-        GroupBuyActivity groupBuyActivityRes = groupBuyActivityDao.queryValidGroupBuyActivityId(activityId);
+        // 优先从缓存获取&写缓存，注意如果实现了后台配置，在更新时要更库，删缓存。
+        GroupBuyActivity groupBuyActivityRes = getFromCacheOrDb(GroupBuyActivity.cacheRedisKey(activityId),
+                () -> groupBuyActivityDao.queryValidGroupBuyActivityId(activityId));
         if (null == groupBuyActivityRes) return null;
 
         String discountId = groupBuyActivityRes.getDiscountId();
 
-        GroupBuyDiscount groupBuyDiscountRes = groupBuyDiscountDao.queryGroupBuyActivityDiscountByDiscountId(discountId);
+        // 优先从缓存获取&写缓存
+        GroupBuyDiscount groupBuyDiscountRes = getFromCacheOrDb(GroupBuyDiscount.cacheRedisKey(discountId),
+                () -> groupBuyDiscountDao.queryGroupBuyActivityDiscountByDiscountId(discountId));
         if (null == groupBuyDiscountRes) return null;
 
         GroupBuyActivityDiscountVO.GroupBuyDiscount groupBuyDiscount = GroupBuyActivityDiscountVO.GroupBuyDiscount.builder()
