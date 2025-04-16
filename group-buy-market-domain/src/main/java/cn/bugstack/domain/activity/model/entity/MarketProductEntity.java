@@ -22,9 +22,9 @@ public class MarketProductEntity {
     private String userId;
     /** 商品ID */
     private String goodsId;
-    /** 渠道 */
-    private String source;
     /** 来源 */
+    private String source;
+    /** 渠道 */
     private String channel;
 
 }
