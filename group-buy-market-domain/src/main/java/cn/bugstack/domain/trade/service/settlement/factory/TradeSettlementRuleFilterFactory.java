@@ -8,8 +8,8 @@ import cn.bugstack.domain.trade.service.settlement.filter.EndRuleFilter;
 import cn.bugstack.domain.trade.service.settlement.filter.OutTradeNoRuleFilter;
 import cn.bugstack.domain.trade.service.settlement.filter.SCRuleFilter;
 import cn.bugstack.domain.trade.service.settlement.filter.SettableRuleFilter;
-import cn.bugstack.types.design.framework.link.model2.LinkArmory;
-import cn.bugstack.types.design.framework.link.model2.chain.BusinessLinkedList;
+import cn.bugstack.wrench.design.framework.link.model2.LinkArmory;
+import cn.bugstack.wrench.design.framework.link.model2.chain.BusinessLinkedList;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,14 +29,14 @@ public class TradeSettlementRuleFilterFactory {
 
     @Bean("tradeSettlementRuleFilter")
     public BusinessLinkedList<TradeSettlementRuleCommandEntity,
-            TradeSettlementRuleFilterFactory.DynamicContext, TradeSettlementRuleFilterBackEntity> tradeSettlementRuleFilter(
+            DynamicContext, TradeSettlementRuleFilterBackEntity> tradeSettlementRuleFilter(
             SCRuleFilter scRuleFilter,
             OutTradeNoRuleFilter outTradeNoRuleFilter,
             SettableRuleFilter settableRuleFilter,
             EndRuleFilter endRuleFilter) {
 
         // 组装链
-        LinkArmory<TradeSettlementRuleCommandEntity, TradeSettlementRuleFilterFactory.DynamicContext, TradeSettlementRuleFilterBackEntity> linkArmory =
+        LinkArmory<TradeSettlementRuleCommandEntity, DynamicContext, TradeSettlementRuleFilterBackEntity> linkArmory =
                 new LinkArmory<>("交易结算规则过滤链", scRuleFilter, outTradeNoRuleFilter, settableRuleFilter, endRuleFilter);
 
         // 链对象

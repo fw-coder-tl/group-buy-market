@@ -6,7 +6,7 @@ import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.GroupBuyProgressVO;
 import cn.bugstack.domain.trade.service.ITradeLockOrderService;
 import cn.bugstack.domain.trade.service.lock.factory.TradeLockRuleFilterFactory;
-import cn.bugstack.types.design.framework.link.model2.chain.BusinessLinkedList;
+import cn.bugstack.wrench.design.framework.link.model2.chain.BusinessLinkedList;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

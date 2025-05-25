@@ -3,7 +3,7 @@ package cn.bugstack.test.types.rule01.factory;
 import cn.bugstack.test.types.rule01.logic.RuleLogic101;
 import cn.bugstack.test.types.rule01.logic.RuleLogic102;
 import cn.bugstack.test.types.rule02.factory.Rule02TradeRuleFactory;
-import cn.bugstack.types.design.framework.link.model1.ILogicLink;
+import cn.bugstack.wrench.design.framework.link.model1.ILogicLink;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

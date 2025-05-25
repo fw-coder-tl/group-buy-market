@@ -4,7 +4,7 @@ import cn.bugstack.domain.trade.model.entity.GroupBuyTeamEntity;
 import cn.bugstack.domain.trade.model.entity.TradeSettlementRuleCommandEntity;
 import cn.bugstack.domain.trade.model.entity.TradeSettlementRuleFilterBackEntity;
 import cn.bugstack.domain.trade.service.settlement.factory.TradeSettlementRuleFilterFactory;
-import cn.bugstack.types.design.framework.link.model2.handler.ILogicHandler;
+import cn.bugstack.wrench.design.framework.link.model2.handler.ILogicHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

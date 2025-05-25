@@ -38,6 +38,14 @@
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
         </dependency>
+
+        <!-- 扳手工程；设计模式框架 -->
+        <dependency>
+            <groupId>cn.bugstack.wrench</groupId>
+            <artifactId>xfg-wrench-starter-design-framework</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
         <!-- 系统模块 -->
         <dependency>
             <groupId>cn.bugstack</groupId>

@@ -5,7 +5,7 @@ import cn.bugstack.domain.activity.model.entity.TrialBalanceEntity;
 import cn.bugstack.domain.activity.model.valobj.GroupBuyActivityDiscountVO;
 import cn.bugstack.domain.activity.model.valobj.SkuVO;
 import cn.bugstack.domain.activity.service.trial.node.RootNode;
-import cn.bugstack.types.design.framework.tree.StrategyHandler;
+import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

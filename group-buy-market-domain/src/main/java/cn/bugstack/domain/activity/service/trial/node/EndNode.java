@@ -6,7 +6,7 @@ import cn.bugstack.domain.activity.model.valobj.GroupBuyActivityDiscountVO;
 import cn.bugstack.domain.activity.model.valobj.SkuVO;
 import cn.bugstack.domain.activity.service.trial.AbstractGroupBuyMarketSupport;
 import cn.bugstack.domain.activity.service.trial.factory.DefaultActivityStrategyFactory;
-import cn.bugstack.types.design.framework.tree.StrategyHandler;
+import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

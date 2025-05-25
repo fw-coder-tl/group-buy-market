@@ -4,7 +4,7 @@ import cn.bugstack.domain.activity.model.entity.MarketProductEntity;
 import cn.bugstack.domain.activity.model.entity.TrialBalanceEntity;
 import cn.bugstack.domain.activity.service.trial.AbstractGroupBuyMarketSupport;
 import cn.bugstack.domain.activity.service.trial.factory.DefaultActivityStrategyFactory;
-import cn.bugstack.types.design.framework.tree.StrategyHandler;
+import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import cn.bugstack.types.enums.ResponseCode;
 import cn.bugstack.types.exception.AppException;
 import com.alibaba.fastjson.JSON;
