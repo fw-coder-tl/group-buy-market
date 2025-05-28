@@ -2,4 +2,4 @@
 docker build -t fuzhengwei/group-buy-market-app:2.0 -f ./Dockerfile .
 
 # 兼容 amd、arm 构建镜像
-# docker buildx build --load --platform liunx/amd64,linux/arm64 -t fuzhengwei/group-buy-market-app:1.2 -f ./Dockerfile . --push
+# docker buildx build --load --platform linux/amd64,linux/arm64 -t fuzhengwei/group-buy-market-app:1.2 -f ./Dockerfile . --push
