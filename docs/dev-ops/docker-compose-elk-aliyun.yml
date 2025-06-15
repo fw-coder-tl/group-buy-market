@@ -1,4 +1,4 @@
-version: '3'
+version: '3.9'
 # 执行脚本；docker-compose -f docker-compose-elk-aliyun.yml up -d
 # mkdir -p {config,data,logs,plugins}
 # 控制台；GET _cat/indices - 查看 springboot-logstash- 是否存在，上报后存在，则表示接入成功
@@ -16,7 +16,7 @@ services:
       - "cluster.name=docker-cluster" # 设置名称
       - 'ES_JAVA_OPTS=-Xms512m -Xmx512m' # 设置使用jvm内存大小
     networks:
-      - elk
+      - my-network
 
   logstash:
     image: registry.cn-hangzhou.aliyuncs.com/xfg-studio/logstash:7.17.28
@@ -37,7 +37,7 @@ services:
     links:
       - elasticsearch:es # 可以用es这个域名访问elasticsearch服务
     networks:
-      - elk
+      - my-network
     depends_on:
       - elasticsearch # 依赖elasticsearch启动后在启动logstash
 
@@ -57,7 +57,7 @@ services:
       - 'elasticsearch.hosts=http://es:9200' #设置访问elasticsearch的地址
       - I18N_LOCALE=zh-CN
     networks:
-      - elk
+      - my-network
     depends_on:
       - elasticsearch
 
