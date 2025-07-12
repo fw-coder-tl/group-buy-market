@@ -13,6 +13,7 @@ import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.GroupBuyProgressVO;
 import cn.bugstack.domain.trade.model.valobj.NotifyConfigVO;
 import cn.bugstack.domain.trade.model.valobj.NotifyTypeEnumVO;
+import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import cn.bugstack.domain.trade.service.ITradeLockOrderService;
 import cn.bugstack.domain.trade.service.ITradeSettlementOrderService;
 import cn.bugstack.types.enums.ResponseCode;
@@ -73,7 +74,7 @@ public class MarketTradeController implements IMarketTradeService {
 
             // 查询 outTradeNo 是否已经存在交易记录
             MarketPayOrderEntity marketPayOrderEntity = tradeOrderService.queryNoPayMarketPayOrderByOutTradeNo(userId, outTradeNo);
-            if (null != marketPayOrderEntity) {
+            if (null != marketPayOrderEntity && TradeOrderStatusEnumVO.CREATE.equals(marketPayOrderEntity.getTradeOrderStatusEnumVO())) {
                 LockMarketPayOrderResponseDTO lockMarketPayOrderResponseDTO = LockMarketPayOrderResponseDTO.builder()
                         .orderId(marketPayOrderEntity.getOrderId())
                         .originalPrice(marketPayOrderEntity.getOriginalPrice())

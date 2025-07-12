@@ -118,8 +118,8 @@
         <appender-ref ref="ASYNC_FILE_INFO"/>
         <!-- 异步日志-ERROR -->
         <appender-ref ref="ASYNC_FILE_ERROR"/>
-        <!-- 上报日志-ELK -->
-        <appender-ref ref="LOGSTASH"/>
+        <!-- 上报日志-ELK 关闭 ELK 日志上报-->
+        <!-- <appender-ref ref="LOGSTASH"/> -->
     </root>
 
 </configuration>

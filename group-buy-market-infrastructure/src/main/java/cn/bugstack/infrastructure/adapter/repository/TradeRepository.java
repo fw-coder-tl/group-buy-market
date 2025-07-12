@@ -2,6 +2,7 @@ package cn.bugstack.infrastructure.adapter.repository;
 
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyOrderAggregate;
+import cn.bugstack.domain.trade.model.aggregate.GroupBuyRefundAggregate;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyTeamSettlementAggregate;
 import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.GroupBuyProgressVO;
@@ -227,7 +228,7 @@ public class TradeRepository implements ITradeRepository {
                 .build();
     }
 
-    @Transactional(timeout = 500)
+    @Transactional(timeout = 5000)
     @Override
     public NotifyTaskEntity settlementMarketPayOrder(GroupBuyTeamSettlementAggregate groupBuyTeamSettlementAggregate) {
 
@@ -387,6 +388,36 @@ public class TradeRepository implements ITradeRepository {
         if (StringUtils.isBlank(recoveryTeamStockKey)) return;
 
         redisService.incr(recoveryTeamStockKey);
+    }
+
+    @Override
+    @Transactional(timeout = 5000)
+    public void unpaid2Refund(GroupBuyRefundAggregate groupBuyRefundAggregate) {
+        TradeRefundOrderEntity tradeRefundOrderEntity = groupBuyRefundAggregate.getTradeRefundOrderEntity();
+        GroupBuyProgressVO groupBuyProgress = groupBuyRefundAggregate.getGroupBuyProgress();
+
+        GroupBuyOrderList groupBuyOrderListReq = new GroupBuyOrderList();
+        // 保留userId，企业中往往会根据 userId 作为分库分表路由键，如果将来做分库分表也可以方便处理
+        groupBuyOrderListReq.setUserId(tradeRefundOrderEntity.getUserId());
+        groupBuyOrderListReq.setOrderId(tradeRefundOrderEntity.getOrderId());
+
+        int updateUnpaid2RefundCount = groupBuyOrderListDao.unpaid2Refund(groupBuyOrderListReq);
+        if (1 != updateUnpaid2RefundCount) {
+            log.error("逆向流程，更新订单状态(退单)失败 {} {}", tradeRefundOrderEntity.getUserId(), tradeRefundOrderEntity.getOrderId());
+            throw new AppException(ResponseCode.UPDATE_ZERO);
+        }
+
+        GroupBuyOrder groupBuyOrderReq = new GroupBuyOrder();
+        groupBuyOrderReq.setTeamId(tradeRefundOrderEntity.getTeamId());
+        groupBuyOrderReq.setLockCount(groupBuyProgress.getLockCount());
+
+        int updateTeamUnpaid2Refund = groupBuyOrderDao.unpaid2Refund(groupBuyOrderReq);
+        if (1 != updateTeamUnpaid2Refund) {
+            log.error("逆向流程，更新组队记录(退单)失败 {} {}", tradeRefundOrderEntity.getUserId(), tradeRefundOrderEntity.getOrderId());
+            throw new AppException(ResponseCode.UPDATE_ZERO);
+        }
+
+        // 逆向后，还要处理 redis recoveryCount 恢复了，这部分最后统一处理
     }
 
 }
