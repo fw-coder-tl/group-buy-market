@@ -32,7 +32,7 @@ public class TradeRefundOrderService implements ITradeRefundOrderService {
     }
 
     @Override
-    public TradeRefundBehaviorEntity refundOrder(TradeRefundCommandEntity tradeRefundCommandEntity) {
+    public TradeRefundBehaviorEntity refundOrder(TradeRefundCommandEntity tradeRefundCommandEntity) throws Exception {
         log.info("逆向流程，退单操作 userId:{} outTradeNo:{}", tradeRefundCommandEntity.getUserId(), tradeRefundCommandEntity.getOutTradeNo());
 
         // 1. 查询外部交易单，组队id、orderId、拼团状态
@@ -58,11 +58,13 @@ public class TradeRefundOrderService implements ITradeRefundOrderService {
 
         // 3. 状态类型判断 - 使用策略模式获取退款类型
         RefundTypeEnumVO refundType = RefundTypeEnumVO.getRefundStrategy(groupBuyOrderEnumVO, tradeOrderStatusEnumVO);
+
         IRefundOrderStrategy refundOrderStrategy = refundOrderStrategyMap.get(refundType.getStrategy());
         refundOrderStrategy.refundOrder(TradeRefundOrderEntity.builder()
                 .userId(tradeRefundCommandEntity.getUserId())
                 .orderId(orderId)
                 .teamId(teamId)
+                .activityId(groupBuyTeamEntity.getActivityId())
                 .build());
 
         return TradeRefundBehaviorEntity.builder()

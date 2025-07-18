@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * @author Fuzhengwei bugstack.cn @小傅哥
- * @description
+ * @description 交易接口服务
  * @create 2025-01-31 13:34
  */
 @Service

@@ -5,6 +5,7 @@ import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyTeamSettlementAggregate;
 import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.service.ITradeSettlementOrderService;
+import cn.bugstack.domain.trade.service.ITradeTaskService;
 import cn.bugstack.domain.trade.service.settlement.factory.TradeSettlementRuleFilterFactory;
 import cn.bugstack.types.enums.NotifyTaskHTTPEnumVO;
 import cn.bugstack.types.exception.AppException;
@@ -30,9 +31,10 @@ public class TradeSettlementOrderService implements ITradeSettlementOrderService
     private ITradeRepository repository;
     @Resource
     private ITradePort port;
-
     @Resource
     private ThreadPoolExecutor threadPoolExecutor;
+    @Resource
+    private ITradeTaskService tradeTaskService;
 
     @Resource
     private BusinessLinkedList<TradeSettlementRuleCommandEntity, TradeSettlementRuleFilterFactory.DynamicContext, TradeSettlementRuleFilterBackEntity> tradeSettlementRuleFilter;
@@ -81,7 +83,7 @@ public class TradeSettlementOrderService implements ITradeSettlementOrderService
             threadPoolExecutor.execute(() -> {
                 Map<String, Integer> notifyResultMap = null;
                 try {
-                    notifyResultMap = execSettlementNotifyJob(notifyTaskEntity);
+                    notifyResultMap = tradeTaskService.execNotifyJob(notifyTaskEntity);
                     log.info("回调通知拼团完结 result:{}", JSON.toJSONString(notifyResultMap));
                 } catch (Exception e) {
                     log.error("回调通知拼团完结失败 result:{}", JSON.toJSONString(notifyResultMap), e);
@@ -99,65 +101,6 @@ public class TradeSettlementOrderService implements ITradeSettlementOrderService
                 .activityId(groupBuyTeamEntity.getActivityId())
                 .outTradeNo(tradePaySuccessEntity.getOutTradeNo())
                 .build();
-    }
-
-    @Override
-    public Map<String, Integer> execSettlementNotifyJob() throws Exception {
-        log.info("拼团交易-执行结算通知任务");
-
-        // 查询未执行任务
-        List<NotifyTaskEntity> notifyTaskEntityList = repository.queryUnExecutedNotifyTaskList();
-
-        return execSettlementNotifyJob(notifyTaskEntityList);
-    }
-
-    @Override
-    public Map<String, Integer> execSettlementNotifyJob(String teamId) throws Exception {
-        log.info("拼团交易-执行结算通知回调，指定 teamId:{}", teamId);
-        List<NotifyTaskEntity> notifyTaskEntityList = repository.queryUnExecutedNotifyTaskList(teamId);
-        return execSettlementNotifyJob(notifyTaskEntityList);
-    }
-
-    @Override
-    public Map<String, Integer> execSettlementNotifyJob(NotifyTaskEntity notifyTaskEntity) throws Exception {
-        log.info("拼团交易-执行结算通知回调，指定 teamId:{} notifyTaskEntity:{}", notifyTaskEntity.getTeamId(), JSON.toJSONString(notifyTaskEntity));
-        return execSettlementNotifyJob(Collections.singletonList(notifyTaskEntity));
-    }
-
-    private Map<String, Integer> execSettlementNotifyJob(List<NotifyTaskEntity> notifyTaskEntityList) throws Exception {
-        int successCount = 0, errorCount = 0, retryCount = 0;
-        for (NotifyTaskEntity notifyTask : notifyTaskEntityList) {
-            // 回调处理 success 成功，error 失败
-            String response = port.groupBuyNotify(notifyTask);
-
-            // 更新状态判断&变更数据库表回调任务状态
-            if (NotifyTaskHTTPEnumVO.SUCCESS.getCode().equals(response)) {
-                int updateCount = repository.updateNotifyTaskStatusSuccess(notifyTask.getTeamId());
-                if (1 == updateCount) {
-                    successCount += 1;
-                }
-            } else if (NotifyTaskHTTPEnumVO.ERROR.getCode().equals(response)) {
-                if (notifyTask.getNotifyCount() > 4) {
-                    int updateCount = repository.updateNotifyTaskStatusError(notifyTask.getTeamId());
-                    if (1 == updateCount) {
-                        errorCount += 1;
-                    }
-                } else {
-                    int updateCount = repository.updateNotifyTaskStatusRetry(notifyTask.getTeamId());
-                    if (1 == updateCount) {
-                        retryCount += 1;
-                    }
-                }
-            }
-        }
-
-        Map<String, Integer> resultMap = new HashMap<>();
-        resultMap.put("waitCount", notifyTaskEntityList.size());
-        resultMap.put("successCount", successCount);
-        resultMap.put("errorCount", errorCount);
-        resultMap.put("retryCount", retryCount);
-
-        return resultMap;
     }
 
 }
