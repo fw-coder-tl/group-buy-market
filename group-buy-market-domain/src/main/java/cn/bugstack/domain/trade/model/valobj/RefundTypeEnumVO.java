@@ -62,13 +62,13 @@ public enum RefundTypeEnumVO {
                 .orElseThrow(() -> new RuntimeException("不支持的退款状态组合: groupBuyOrderStatus=" + groupBuyOrderEnumVO + ", tradeOrderStatus=" + tradeOrderStatusEnumVO));
     }
 
-    public static RefundTypeEnumVO valueOf(Integer code) {
+    public static RefundTypeEnumVO getRefundTypeEnumVOByCode(String code) {
         switch (code) {
-            case 1:
+            case "unpaid_unlock":
                 return UNPAID_UNLOCK;
-            case 2:
+            case "paid_unformed":
                 return PAID_UNFORMED;
-            case 3:
+            case "paid_formed":
                 return PAID_FORMED;
         }
         throw new RuntimeException("退单类型枚举值不存在: " + code);
