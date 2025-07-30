@@ -64,18 +64,18 @@ public class TradeTaskService implements ITradeTaskService {
 
             // 更新状态判断&变更数据库表回调任务状态
             if (NotifyTaskHTTPEnumVO.SUCCESS.getCode().equals(response)) {
-                int updateCount = repository.updateNotifyTaskStatusSuccess(notifyTask.getTeamId());
+                int updateCount = repository.updateNotifyTaskStatusSuccess(notifyTask);
                 if (1 == updateCount) {
                     successCount += 1;
                 }
             } else if (NotifyTaskHTTPEnumVO.ERROR.getCode().equals(response)) {
                 if (notifyTask.getNotifyCount() > 4) {
-                    int updateCount = repository.updateNotifyTaskStatusError(notifyTask.getTeamId());
+                    int updateCount = repository.updateNotifyTaskStatusError(notifyTask);
                     if (1 == updateCount) {
                         errorCount += 1;
                     }
                 } else {
-                    int updateCount = repository.updateNotifyTaskStatusRetry(notifyTask.getTeamId());
+                    int updateCount = repository.updateNotifyTaskStatusRetry(notifyTask);
                     if (1 == updateCount) {
                         retryCount += 1;
                     }
