@@ -1,5 +1,6 @@
 package cn.bugstack.domain.trade.service.refund;
 
+import cn.bugstack.domain.activity.model.entity.UserGroupBuyOrderDetailEntity;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.RefundTypeEnumVO;
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,14 +30,17 @@ import java.util.Map;
 @Service
 public class TradeRefundOrderService implements ITradeRefundOrderService {
 
-    private final Map<String, IRefundOrderStrategy> refundOrderStrategyMap;
-
-    public TradeRefundOrderService(Map<String, IRefundOrderStrategy> refundOrderStrategyMap) {
-        this.refundOrderStrategyMap = refundOrderStrategyMap;
-    }
-
     @Resource
     private BusinessLinkedList<TradeRefundCommandEntity, TradeRefundRuleFilterFactory.DynamicContext, TradeRefundBehaviorEntity> tradeRefundRuleFilter;
+
+    private final ITradeRepository repository;
+
+    private final Map<String, IRefundOrderStrategy> refundOrderStrategyMap;
+
+    public TradeRefundOrderService(ITradeRepository repository, Map<String, IRefundOrderStrategy> refundOrderStrategyMap) {
+        this.repository = repository;
+        this.refundOrderStrategyMap = refundOrderStrategyMap;
+    }
 
     @Override
     public TradeRefundBehaviorEntity refundOrder(TradeRefundCommandEntity tradeRefundCommandEntity) throws Exception {
@@ -54,6 +59,12 @@ public class TradeRefundOrderService implements ITradeRefundOrderService {
 
         // 逆向库存操作，恢复锁单量
         refundOrderStrategy.reverseStock(teamRefundSuccess);
+    }
+
+    @Override
+    public List<UserGroupBuyOrderDetailEntity> queryTimeoutUnpaidOrderList() {
+        log.info("扫描数据，超时组队未支付订单");
+        return repository.queryTimeoutUnpaidOrderList();
     }
 
 }

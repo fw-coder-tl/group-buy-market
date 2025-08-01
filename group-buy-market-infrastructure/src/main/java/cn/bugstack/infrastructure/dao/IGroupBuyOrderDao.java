@@ -26,6 +26,8 @@ public interface IGroupBuyOrderDao {
 
     GroupBuyOrder queryGroupBuyTeamByTeamId(String teamId);
 
+    List<GroupBuyOrder> queryGroupBuyTeamByTeamIds(@Param("teamIds") Set<String> teamIds);
+
     int updateAddCompleteCount(String teamId);
 
     int updateOrderStatus2COMPLETE(String teamId);
