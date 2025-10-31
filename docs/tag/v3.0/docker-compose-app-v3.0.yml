@@ -17,42 +17,42 @@ services:
       - ./nginx/conf/conf.d:/etc/nginx/conf.d
     privileged: true
   # 部署后端项目 - 小型支付商城
-  s-pay-mall-app:
-    image: fuzhengwei/s-pay-mall-ddd-app:3.0
-    container_name: s-pay-mall-app
-    restart: on-failure
-    ports:
-      - "9091:8080"
-    environment:
-      - TZ=PRC
-      - SERVER_PORT=8080
-      - APP_CONFIG_GROUP_BUY_MARKET_API_URL=http://117.72.169.159
-      - APP_CONFIG_GROUP_BUY_MARKET_NOTIFY_URL=http://117.72.169.159/api/v1/alipay/group_buy_notify
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=123456
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/s-pay-mall-ddd-market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
-      - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
-      - SPRING_RABBITMQ_ADDRESSES=rabbitmq
-      - SPRING_RABBITMQ_PORT=5672
-      - SPRING_RABBITMQ_USERNAME=admin
-      - SPRING_RABBITMQ_PASSWORD=admin
-      - WEIXIN_CONFIG_ORIGINALID=gh_e067c267e056
-      - WEIXIN_CONFIG_TOKEN=b8b6
-      - WEIXIN_CONFIG_APP_ID=wx5a228ff69e28a91f
-      - WEIXIN_CONFIG_APP_SECRET=0bea03aa1310bac050aae79dd8703928
-      - WEIXIN_CONFIG_TEMPLATE_ID=RbEZ2jo47dQmF4A7_Ku7RsDy1x_5by6bk1Ox6rPCl4Y
-      - ALIPAY_NOTIFY_URL=http://xfg-studio.natapp1.cc/api/v1/alipay/alipay_notify_url
-      - ALIPAY_RETURN_URL=http://117.72.169.159
-    volumes:
-      - ./log:/data/log
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - my-network
+#  s-pay-mall-app:
+#    image: fuzhengwei/s-pay-mall-ddd-app:3.0
+#    container_name: s-pay-mall-app
+#    restart: on-failure
+#    ports:
+#      - "9091:8080"
+#    environment:
+#      - TZ=PRC
+#      - SERVER_PORT=8080
+#      - APP_CONFIG_GROUP_BUY_MARKET_API_URL=http://114.67.94.182
+#      - APP_CONFIG_GROUP_BUY_MARKET_NOTIFY_URL=http://114.67.94.182/api/v1/alipay/group_buy_notify
+#      - SPRING_DATASOURCE_USERNAME=root
+#      - SPRING_DATASOURCE_PASSWORD=123456
+#      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/s-pay-mall-ddd-market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
+#      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+#      - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
+#      - SPRING_RABBITMQ_ADDRESSES=rabbitmq
+#      - SPRING_RABBITMQ_PORT=5672
+#      - SPRING_RABBITMQ_USERNAME=admin
+#      - SPRING_RABBITMQ_PASSWORD=admin
+#      - WEIXIN_CONFIG_ORIGINALID=gh_e067c267e056
+#      - WEIXIN_CONFIG_TOKEN=b8b6
+#      - WEIXIN_CONFIG_APP_ID=wx5a228ff69e28a91f
+#      - WEIXIN_CONFIG_APP_SECRET=0bea03aa1310bac050aae79dd8703928
+#      - WEIXIN_CONFIG_TEMPLATE_ID=RbEZ2jo47dQmF4A7_Ku7RsDy1x_5by6bk1Ox6rPCl4Y
+#      - ALIPAY_NOTIFY_URL=http://xfg-studio.natapp1.cc/api/v1/alipay/alipay_notify_url
+#      - ALIPAY_RETURN_URL=http://114.67.94.182
+#    volumes:
+#      - ./log:/data/log
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "10m"
+#        max-file: "3"
+#    networks:
+#      - my-network
   # 拼团，负载01
   # 原镜像，需要自己构建；fuzhengwei/group-buy-market-app:3.0
   # 代理镜像（小傅哥打包好的，可以直接使用）； registry.cn-hangzhou.aliyuncs.com/xfg-studio/group-buy-market-app:3.0

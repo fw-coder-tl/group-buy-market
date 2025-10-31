@@ -6,6 +6,6 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets:
-          - 'host.docker.internal:8091'
+          - '172.30.0.4:8091'
         labels:
           app: 'group-buy-market-app'
