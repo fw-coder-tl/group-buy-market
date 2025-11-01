@@ -22,12 +22,15 @@ import cn.bugstack.types.exception.AppException;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.Redisson;
+import org.redisson.api.RLock;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Fuzhengwei bugstack.cn @小傅哥
@@ -49,29 +52,56 @@ public class MarketTradeController implements IMarketTradeService {
     @Resource
     private ITradeRefundOrderService tradeRefundOrderService;
 
+    @Resource
+    private Redisson redissonClient;
+
     /**
      * 拼团营销锁单
      */
-    @RequestMapping(value = "lock_market_pay_order", method = RequestMethod.POST)
+    @RequestMapping(value = "lock_market_pay_order_with_lock", method = RequestMethod.POST)
     @Override
     public Response<LockMarketPayOrderResponseDTO> lockMarketPayOrder(@RequestBody LockMarketPayOrderRequestDTO requestDTO) {
+
+        // 参数
+        String userId = requestDTO.getUserId();
+        String source = requestDTO.getSource();
+        String channel = requestDTO.getChannel();
+        String goodsId = requestDTO.getGoodsId();
+        Long activityId = requestDTO.getActivityId();
+        String outTradeNo = requestDTO.getOutTradeNo();
+        String teamId = requestDTO.getTeamId();
+        LockMarketPayOrderRequestDTO.NotifyConfigVO notifyConfigVO = requestDTO.getNotifyConfigVO();
+
+        //log.info("营销交易锁单:{} LockMarketPayOrderRequestDTO:{}", userId, JSON.toJSONString(requestDTO));
+
+        // 使用分布式锁
+        RLock lock = redissonClient.getLock("lock:order:" + userId + ":" + outTradeNo);
+
         try {
-            // 参数
-            String userId = requestDTO.getUserId();
-            String source = requestDTO.getSource();
-            String channel = requestDTO.getChannel();
-            String goodsId = requestDTO.getGoodsId();
-            Long activityId = requestDTO.getActivityId();
-            String outTradeNo = requestDTO.getOutTradeNo();
-            String teamId = requestDTO.getTeamId();
-            LockMarketPayOrderRequestDTO.NotifyConfigVO notifyConfigVO = requestDTO.getNotifyConfigVO();
-
-            log.info("营销交易锁单:{} LockMarketPayOrderRequestDTO:{}", userId, JSON.toJSONString(requestDTO));
-
             if (StringUtils.isBlank(userId) || StringUtils.isBlank(source) || StringUtils.isBlank(channel) || StringUtils.isBlank(goodsId) || null == activityId || ("HTTP".equals(notifyConfigVO.getNotifyType()) && StringUtils.isBlank(notifyConfigVO.getNotifyUrl()))) {
                 return Response.<LockMarketPayOrderResponseDTO>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info(ResponseCode.ILLEGAL_PARAMETER.getInfo())
+                        .build();
+            }
+
+            boolean locked = lock.tryLock(3, 10, TimeUnit.SECONDS);
+
+            if(!locked){
+                log.info("系统繁忙，请稍后再试");
+                return Response.<LockMarketPayOrderResponseDTO>builder()
+                        .code("E0009")
+                        .info("系统繁忙，请稍后再试")
+                        .build();
+            }
+
+            // 检查是否重复提交
+            String checkKey = "order:check:" + outTradeNo;
+            if (redissonClient.getBucket(checkKey).isExists()) {
+                log.info("订单已处理，请勿重复提交");
+                return Response.<LockMarketPayOrderResponseDTO>builder()
+                        .code("E0010")
+                        .info("订单已存在，请勿重复提交")
                         .build();
             }
 
@@ -157,6 +187,9 @@ public class MarketTradeController implements IMarketTradeService {
 
             log.info("交易锁单记录(新):{} marketPayOrderEntity:{}", userId, JSON.toJSONString(marketPayOrderEntity));
 
+            // 标记订单已创建
+            redissonClient.getBucket(checkKey).set("1", 30, TimeUnit.MINUTES);
+
             // 返回结果
             return Response.<LockMarketPayOrderResponseDTO>builder()
                     .code(ResponseCode.SUCCESS.getCode())
@@ -172,6 +205,7 @@ public class MarketTradeController implements IMarketTradeService {
                     .build();
         } catch (AppException e) {
             log.error("营销交易锁单业务异常:{} LockMarketPayOrderRequestDTO:{}", requestDTO.getUserId(), JSON.toJSONString(requestDTO), e);
+            Thread.currentThread().interrupt();
             return Response.<LockMarketPayOrderResponseDTO>builder()
                     .code(e.getCode())
                     .info(e.getInfo())
@@ -182,6 +216,10 @@ public class MarketTradeController implements IMarketTradeService {
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info(ResponseCode.UN_ERROR.getInfo())
                     .build();
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
     }
 

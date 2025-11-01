@@ -3,6 +3,8 @@ package cn.bugstack.trigger.http;
 import cn.bugstack.api.IMarketIndexService;
 import cn.bugstack.api.dto.GoodsMarketRequestDTO;
 import cn.bugstack.api.dto.GoodsMarketResponseDTO;
+import cn.bugstack.api.dto.LockMarketPayOrderRequestDTO;
+import cn.bugstack.api.dto.LockMarketPayOrderResponseDTO;
 import cn.bugstack.api.response.Response;
 import cn.bugstack.domain.activity.model.entity.MarketProductEntity;
 import cn.bugstack.domain.activity.model.entity.TrialBalanceEntity;
@@ -10,6 +12,7 @@ import cn.bugstack.domain.activity.model.entity.UserGroupBuyOrderDetailEntity;
 import cn.bugstack.domain.activity.model.valobj.GroupBuyActivityDiscountVO;
 import cn.bugstack.domain.activity.model.valobj.TeamStatisticVO;
 import cn.bugstack.domain.activity.service.IIndexGroupBuyMarketService;
+import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
 import cn.bugstack.types.enums.ResponseCode;
 import cn.bugstack.types.enums.TokenSceneEnum;
 import cn.bugstack.types.utils.TokenUtil;
@@ -17,6 +20,7 @@ import cn.bugstack.wrench.rate.limiter.types.annotations.RateLimiterAccessInterc
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.web.bind.annotation.*;
 
@@ -135,68 +139,6 @@ public class MarketIndexController implements IMarketIndexService {
                 .code(ResponseCode.RATE_LIMITER.getCode())
                 .info(ResponseCode.RATE_LIMITER.getInfo())
                 .build();
-    }
-
-    /**
-     * 获取Token - 用于防止订单重复提交
-     * 
-     * @param scene 场景类型（lock_order）
-     * @param userId 用户ID
-     * @param activityId 活动ID
-     * @return Token
-     */
-    @RequestMapping(value = "get_token", method = RequestMethod.GET)
-    public Response<String> getToken(@RequestParam String scene, 
-                                      @RequestParam String userId, 
-                                      @RequestParam Long activityId) {
-        try {
-            log.info("获取Token开始: scene:{} userId:{} activityId:{}", scene, userId, activityId);
-
-            // 1. 校验场景类型
-            TokenSceneEnum tokenScene = TokenSceneEnum.getByScene(scene);
-            if (tokenScene == null) {
-                log.error("Token场景不存在: {}", scene);
-                return Response.<String>builder()
-                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
-                        .info("Token场景不存在")
-                        .build();
-            }
-
-            // 2. 校验参数
-            if (StringUtils.isBlank(userId) || activityId == null) {
-                log.error("参数不合法: userId:{} activityId:{}", userId, activityId);
-                return Response.<String>builder()
-                        .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
-                        .info("参数不能为空")
-                        .build();
-            }
-
-            // 3. 校验活动是否存在（防止攻击者传入随机的activityId）
-            // 这里可以查询数据库验证activityId是否合法
-            // 为了性能考虑，这里简化处理，实际项目中应该增加校验
-
-            // 4. 生成Token
-            // tokenKey格式: token:lock_order:activityId:userId
-            String tokenKey = "token:" + scene + ":" + activityId + ":" + userId;
-            String tokenValue = TokenUtil.getTokenValueByKey(tokenKey);
-
-            // 5. 存储到Redis，30分钟过期
-            redissonClient.getBucket(tokenKey).set(tokenValue, 30, TimeUnit.MINUTES);
-
-            log.info("获取Token成功: userId:{} activityId:{} token:{}", userId, activityId, tokenValue);
-
-            return Response.<String>builder()
-                    .code(ResponseCode.SUCCESS.getCode())
-                    .info(ResponseCode.SUCCESS.getInfo())
-                    .data(tokenValue)
-                    .build();
-        } catch (Exception e) {
-            log.error("获取Token失败: scene:{} userId:{} activityId:{}", scene, userId, activityId, e);
-            return Response.<String>builder()
-                    .code(ResponseCode.UN_ERROR.getCode())
-                    .info("获取Token失败")
-                    .build();
-        }
     }
 
 }
