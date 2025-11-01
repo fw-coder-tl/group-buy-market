@@ -6,7 +6,7 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets:
-          - 'group-buy-market-01:8091'
-          - 'group-buy-market-02:8092'
+          - 'group-buy-market-app-01:8091'
+          - 'group-buy-market-app-02:8091'
         labels:
           app: 'group-buy-market-app'
