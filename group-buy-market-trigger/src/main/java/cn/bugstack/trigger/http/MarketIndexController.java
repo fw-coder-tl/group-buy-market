@@ -3,6 +3,7 @@ package cn.bugstack.trigger.http;
 import cn.bugstack.api.IMarketIndexService;
 import cn.bugstack.api.dto.GoodsMarketRequestDTO;
 import cn.bugstack.api.dto.GoodsMarketResponseDTO;
+import cn.bugstack.api.dto.TokenRequestDTO;
 import cn.bugstack.api.response.Response;
 import cn.bugstack.domain.activity.model.entity.MarketProductEntity;
 import cn.bugstack.domain.activity.model.entity.TrialBalanceEntity;
@@ -27,9 +28,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description 营销首页服务
- * @create 2025-02-02 16:03
  */
 @Slf4j
 @RestController()
@@ -139,23 +139,19 @@ public class MarketIndexController implements IMarketIndexService {
 
     /**
      * 获取Token - 用于防止订单重复提交
-     * 
-     * @param scene 场景类型（lock_order）
-     * @param userId 用户ID
-     * @param activityId 活动ID
+     * @param tokenRequestDTO 令牌请求参数
      * @return Token
      */
     @RequestMapping(value = "get_token", method = RequestMethod.GET)
-    public Response<String> getToken(@RequestParam String scene, 
-                                      @RequestParam String userId, 
-                                      @RequestParam Long activityId) {
+    @Override
+    public Response<String> getToken(TokenRequestDTO tokenRequestDTO) {
         try {
-            log.info("获取Token开始: scene:{} userId:{} activityId:{}", scene, userId, activityId);
+            log.info("获取Token开始: scene:{} userId:{} activityId:{}", tokenRequestDTO.getScene(), tokenRequestDTO.getUserId(), tokenRequestDTO.getActivityId());
 
             // 1. 校验场景类型
-            TokenSceneEnum tokenScene = TokenSceneEnum.getByScene(scene);
+            TokenSceneEnum tokenScene = TokenSceneEnum.getByScene(tokenRequestDTO.getScene());
             if (tokenScene == null) {
-                log.error("Token场景不存在: {}", scene);
+                log.error("Token场景不存在: {}", tokenRequestDTO.getScene());
                 return Response.<String>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("Token场景不存在")
@@ -163,8 +159,8 @@ public class MarketIndexController implements IMarketIndexService {
             }
 
             // 2. 校验参数
-            if (StringUtils.isBlank(userId) || activityId == null) {
-                log.error("参数不合法: userId:{} activityId:{}", userId, activityId);
+            if (StringUtils.isBlank(tokenRequestDTO.getUserId()) || tokenRequestDTO.getActivityId() == null) {
+                log.error("参数不合法: userId:{} activityId:{}", tokenRequestDTO.getUserId(), tokenRequestDTO.getActivityId());
                 return Response.<String>builder()
                         .code(ResponseCode.ILLEGAL_PARAMETER.getCode())
                         .info("参数不能为空")
@@ -177,13 +173,13 @@ public class MarketIndexController implements IMarketIndexService {
 
             // 4. 生成Token
             // tokenKey格式: token:lock_order:activityId:userId
-            String tokenKey = "token:" + scene + ":" + activityId + ":" + userId;
+            String tokenKey = "token:" + tokenScene.getScene() + ":" + tokenRequestDTO.getActivityId() + ":" + tokenRequestDTO.getUserId();
             String tokenValue = TokenUtil.getTokenValueByKey(tokenKey);
 
             // 5. 存储到Redis，30分钟过期
             redissonClient.getBucket(tokenKey).set(tokenValue, 30, TimeUnit.MINUTES);
 
-            log.info("获取Token成功: userId:{} activityId:{} token:{}", userId, activityId, tokenValue);
+            log.info("获取Token成功: userId:{} activityId:{} token:{}", tokenRequestDTO.getUserId(), tokenRequestDTO.getActivityId(), tokenValue);
 
             return Response.<String>builder()
                     .code(ResponseCode.SUCCESS.getCode())
@@ -191,7 +187,7 @@ public class MarketIndexController implements IMarketIndexService {
                     .data(tokenValue)
                     .build();
         } catch (Exception e) {
-            log.error("获取Token失败: scene:{} userId:{} activityId:{}", scene, userId, activityId, e);
+            log.error("获取Token失败: scene:{} userId:{} activityId:{}", tokenRequestDTO.getScene(), tokenRequestDTO.getUserId(), tokenRequestDTO.getActivityId(), e);
             return Response.<String>builder()
                     .code(ResponseCode.UN_ERROR.getCode())
                     .info("获取Token失败")

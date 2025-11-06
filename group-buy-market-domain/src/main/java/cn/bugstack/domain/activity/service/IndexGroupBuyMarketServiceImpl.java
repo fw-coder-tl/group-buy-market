@@ -14,9 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description 首页营销服务
- * @create 2024-12-14 14:33
+ * @create 2025-11-6 14:33
  */
 @Service
 public class IndexGroupBuyMarketServiceImpl implements IIndexGroupBuyMarketService {

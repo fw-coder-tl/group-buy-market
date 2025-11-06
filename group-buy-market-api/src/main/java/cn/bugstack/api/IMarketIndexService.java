@@ -2,6 +2,7 @@ package cn.bugstack.api;
 
 import cn.bugstack.api.dto.GoodsMarketRequestDTO;
 import cn.bugstack.api.dto.GoodsMarketResponseDTO;
+import cn.bugstack.api.dto.TokenRequestDTO;
 import cn.bugstack.api.response.Response;
 
 /**
@@ -18,5 +19,12 @@ public interface IMarketIndexService {
      * @return 营销配置信息
      */
     Response<GoodsMarketResponseDTO> queryGroupBuyMarketConfig(GoodsMarketRequestDTO goodsMarketRequestDTO);
+
+    /**
+     * 获取Token - 用于防止订单重复提交
+     * @param tokenRequestDTO 令牌请求参数
+     * @return Token
+     */
+    Response<String> getToken(TokenRequestDTO tokenRequestDTO);
 
 }

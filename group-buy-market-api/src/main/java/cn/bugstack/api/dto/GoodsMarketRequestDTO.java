@@ -3,9 +3,9 @@ package cn.bugstack.api.dto;
 import lombok.Data;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description 商品营销请求对象
- * @create 2025-02-02 12:19
+ * @create 2025-011-06 12:19
  */
 @Data
 public class GoodsMarketRequestDTO {
