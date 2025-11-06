@@ -24,9 +24,9 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description 营销优惠节点
- * @create 2024-12-14 14:30
+ * @create 2025-11-6 14:30
  */
 @Slf4j
 @Service

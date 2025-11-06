@@ -14,9 +14,9 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description 开关节点
- * @create 2024-12-14 14:27
+ * @create 2025-11-6 14:27
  */
 @Slf4j
 @Service

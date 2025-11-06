@@ -9,9 +9,9 @@ import cn.bugstack.domain.activity.model.valobj.TeamStatisticVO;
 import java.util.List;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description 活动仓储
- * @create 2024-12-21 10:06
+ * @create 2025-11-6 10:06
  */
 public interface IActivityRepository {
 
