@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description Token过滤器配置
  * @create 2025-11-01
  */
@@ -23,7 +23,7 @@ public class TokenFilterConfiguration {
         registrationBean.setFilter(new TokenFilter(redissonClient));
         
         // 配置需要Token校验的URL
-        registrationBean.addUrlPatterns("/api/v1/gbm/trade/lock_market_pay_order");
+        registrationBean.addUrlPatterns("/api/v1/gbm/trade/lock_market_pay_order/1");
         
         // 设置过滤器顺序
         registrationBean.setOrder(10);

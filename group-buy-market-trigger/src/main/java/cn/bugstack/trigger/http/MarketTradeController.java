@@ -30,9 +30,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author liang.tian
  * @description 营销交易服务
- * @create 2025-01-11 14:01
+ * @create 2025-11-10 14:01
  */
 @Slf4j
 @RestController()

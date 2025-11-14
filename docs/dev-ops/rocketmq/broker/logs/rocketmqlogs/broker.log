@@ -1,0 +1,359 @@
+2025-11-14 14:09:07 INFO main - brokerConfigPath=
+2025-11-14 14:09:07 INFO main - rocketmqHome=/home/rocketmq/rocketmq-5.1.4
+2025-11-14 14:09:07 INFO main - namesrvAddr=rocketmq-namesrv:9876
+2025-11-14 14:09:07 INFO main - listenPort=10911
+2025-11-14 14:09:07 INFO main - brokerIP1=127.0.0.1
+2025-11-14 14:09:07 INFO main - brokerIP2=172.20.0.3
+2025-11-14 14:09:07 INFO main - recoverConcurrently=false
+2025-11-14 14:09:07 INFO main - brokerPermission=6
+2025-11-14 14:09:07 INFO main - defaultTopicQueueNums=8
+2025-11-14 14:09:07 INFO main - autoCreateTopicEnable=true
+2025-11-14 14:09:07 INFO main - clusterTopicEnable=true
+2025-11-14 14:09:07 INFO main - brokerTopicEnable=true
+2025-11-14 14:09:07 INFO main - autoCreateSubscriptionGroup=true
+2025-11-14 14:09:07 INFO main - messageStorePlugIn=
+2025-11-14 14:09:07 INFO main - msgTraceTopicName=RMQ_SYS_TRACE_TOPIC
+2025-11-14 14:09:07 INFO main - traceTopicEnable=false
+2025-11-14 14:09:07 INFO main - sendMessageThreadPoolNums=128
+2025-11-14 14:09:07 INFO main - putMessageFutureThreadPoolNums=4
+2025-11-14 14:09:07 INFO main - pullMessageThreadPoolNums=128
+2025-11-14 14:09:07 INFO main - litePullMessageThreadPoolNums=32
+2025-11-14 14:09:07 INFO main - ackMessageThreadPoolNums=3
+2025-11-14 14:09:07 INFO main - processReplyMessageThreadPoolNums=32
+2025-11-14 14:09:07 INFO main - queryMessageThreadPoolNums=16
+2025-11-14 14:09:07 INFO main - adminBrokerThreadPoolNums=16
+2025-11-14 14:09:07 INFO main - clientManageThreadPoolNums=32
+2025-11-14 14:09:07 INFO main - consumerManageThreadPoolNums=32
+2025-11-14 14:09:07 INFO main - loadBalanceProcessorThreadPoolNums=32
+2025-11-14 14:09:07 INFO main - heartbeatThreadPoolNums=8
+2025-11-14 14:09:07 INFO main - recoverThreadPoolNums=32
+2025-11-14 14:09:07 INFO main - endTransactionThreadPoolNums=24
+2025-11-14 14:09:07 INFO main - flushConsumerOffsetInterval=5000
+2025-11-14 14:09:07 INFO main - flushConsumerOffsetHistoryInterval=60000
+2025-11-14 14:09:07 INFO main - rejectTransactionMessage=false
+2025-11-14 14:09:07 INFO main - fetchNameSrvAddrByDnsLookup=false
+2025-11-14 14:09:07 INFO main - fetchNamesrvAddrByAddressServer=false
+2025-11-14 14:09:07 INFO main - sendThreadPoolQueueCapacity=10000
+2025-11-14 14:09:07 INFO main - putThreadPoolQueueCapacity=10000
+2025-11-14 14:09:07 INFO main - pullThreadPoolQueueCapacity=100000
+2025-11-14 14:09:07 INFO main - litePullThreadPoolQueueCapacity=100000
+2025-11-14 14:09:07 INFO main - ackThreadPoolQueueCapacity=100000
+2025-11-14 14:09:07 INFO main - replyThreadPoolQueueCapacity=10000
+2025-11-14 14:09:07 INFO main - queryThreadPoolQueueCapacity=20000
+2025-11-14 14:09:07 INFO main - clientManagerThreadPoolQueueCapacity=1000000
+2025-11-14 14:09:07 INFO main - consumerManagerThreadPoolQueueCapacity=1000000
+2025-11-14 14:09:07 INFO main - heartbeatThreadPoolQueueCapacity=50000
+2025-11-14 14:09:07 INFO main - endTransactionPoolQueueCapacity=100000
+2025-11-14 14:09:07 INFO main - adminBrokerThreadPoolQueueCapacity=10000
+2025-11-14 14:09:07 INFO main - loadBalanceThreadPoolQueueCapacity=100000
+2025-11-14 14:09:07 INFO main - longPollingEnable=true
+2025-11-14 14:09:07 INFO main - shortPollingTimeMills=1000
+2025-11-14 14:09:07 INFO main - notifyConsumerIdsChangedEnable=true
+2025-11-14 14:09:07 INFO main - highSpeedMode=false
+2025-11-14 14:09:07 INFO main - commercialBaseCount=1
+2025-11-14 14:09:07 INFO main - commercialSizePerMsg=4096
+2025-11-14 14:09:07 INFO main - accountStatsEnable=true
+2025-11-14 14:09:07 INFO main - accountStatsPrintZeroValues=true
+2025-11-14 14:09:07 INFO main - transferMsgByHeap=true
+2025-11-14 14:09:07 INFO main - regionId=DefaultRegion
+2025-11-14 14:09:07 INFO main - registerBrokerTimeoutMills=24000
+2025-11-14 14:09:07 INFO main - sendHeartbeatTimeoutMillis=1000
+2025-11-14 14:09:07 INFO main - slaveReadEnable=false
+2025-11-14 14:09:07 INFO main - disableConsumeIfConsumerReadSlowly=false
+2025-11-14 14:09:07 INFO main - consumerFallbehindThreshold=17179869184
+2025-11-14 14:09:07 INFO main - brokerFastFailureEnable=true
+2025-11-14 14:09:07 INFO main - waitTimeMillsInSendQueue=200
+2025-11-14 14:09:07 INFO main - waitTimeMillsInPullQueue=5000
+2025-11-14 14:09:07 INFO main - waitTimeMillsInLitePullQueue=5000
+2025-11-14 14:09:07 INFO main - waitTimeMillsInHeartbeatQueue=31000
+2025-11-14 14:09:07 INFO main - waitTimeMillsInTransactionQueue=3000
+2025-11-14 14:09:07 INFO main - waitTimeMillsInAckQueue=3000
+2025-11-14 14:09:07 INFO main - startAcceptSendRequestTimeStamp=0
+2025-11-14 14:09:07 INFO main - traceOn=true
+2025-11-14 14:09:07 INFO main - enableCalcFilterBitMap=false
+2025-11-14 14:09:07 INFO main - rejectPullConsumerEnable=false
+2025-11-14 14:09:07 INFO main - expectConsumerNumUseFilter=32
+2025-11-14 14:09:07 INFO main - maxErrorRateOfBloomFilter=20
+2025-11-14 14:09:07 INFO main - filterDataCleanTimeSpan=86400000
+2025-11-14 14:09:07 INFO main - filterSupportRetry=false
+2025-11-14 14:09:07 INFO main - enablePropertyFilter=false
+2025-11-14 14:09:07 INFO main - compressedRegister=false
+2025-11-14 14:09:07 INFO main - forceRegister=true
+2025-11-14 14:09:07 INFO main - registerNameServerPeriod=30000
+2025-11-14 14:09:07 INFO main - brokerHeartbeatInterval=1000
+2025-11-14 14:09:07 INFO main - brokerNotActiveTimeoutMillis=10000
+2025-11-14 14:09:07 INFO main - enableNetWorkFlowControl=false
+2025-11-14 14:09:07 INFO main - enableBroadcastOffsetStore=true
+2025-11-14 14:09:07 INFO main - broadcastOffsetExpireSecond=120
+2025-11-14 14:09:07 INFO main - broadcastOffsetExpireMaxSecond=300
+2025-11-14 14:09:07 INFO main - popPollingSize=1024
+2025-11-14 14:09:07 INFO main - popPollingMapSize=100000
+2025-11-14 14:09:07 INFO main - maxPopPollingSize=100000
+2025-11-14 14:09:07 INFO main - reviveQueueNum=8
+2025-11-14 14:09:07 INFO main - reviveInterval=1000
+2025-11-14 14:09:07 INFO main - reviveMaxSlow=3
+2025-11-14 14:09:07 INFO main - reviveScanTime=10000
+2025-11-14 14:09:07 INFO main - enableSkipLongAwaitingAck=false
+2025-11-14 14:09:07 INFO main - reviveAckWaitMs=180000
+2025-11-14 14:09:07 INFO main - enablePopLog=false
+2025-11-14 14:09:07 INFO main - enablePopBufferMerge=false
+2025-11-14 14:09:07 INFO main - popCkStayBufferTime=10000
+2025-11-14 14:09:07 INFO main - popCkStayBufferTimeOut=3000
+2025-11-14 14:09:07 INFO main - popCkMaxBufferSize=200000
+2025-11-14 14:09:07 INFO main - popCkOffsetMaxQueueSize=20000
+2025-11-14 14:09:07 INFO main - enablePopBatchAck=false
+2025-11-14 14:09:07 INFO main - enableNotifyAfterPopOrderLockRelease=true
+2025-11-14 14:09:07 INFO main - initPopOffsetByCheckMsgInMem=true
+2025-11-14 14:09:07 INFO main - realTimeNotifyConsumerChange=true
+2025-11-14 14:09:07 INFO main - litePullMessageEnable=true
+2025-11-14 14:09:07 INFO main - syncBrokerMemberGroupPeriod=1000
+2025-11-14 14:09:07 INFO main - loadBalancePollNameServerInterval=30000
+2025-11-14 14:09:07 INFO main - cleanOfflineBrokerInterval=30000
+2025-11-14 14:09:07 INFO main - serverLoadBalancerEnable=true
+2025-11-14 14:09:07 INFO main - defaultMessageRequestMode=PULL
+2025-11-14 14:09:07 INFO main - defaultPopShareQueueNum=-1
+2025-11-14 14:09:07 INFO main - transactionTimeOut=6000
+2025-11-14 14:09:07 INFO main - transactionCheckMax=15
+2025-11-14 14:09:07 INFO main - transactionCheckInterval=30000
+2025-11-14 14:09:07 INFO main - transactionOpMsgMaxSize=4096
+2025-11-14 14:09:07 INFO main - transactionOpBatchInterval=3000
+2025-11-14 14:09:07 INFO main - aclEnable=false
+2025-11-14 14:09:07 INFO main - storeReplyMessageEnable=true
+2025-11-14 14:09:07 INFO main - enableDetailStat=true
+2025-11-14 14:09:07 INFO main - autoDeleteUnusedStats=false
+2025-11-14 14:09:07 INFO main - isolateLogEnable=false
+2025-11-14 14:09:07 INFO main - forwardTimeout=3000
+2025-11-14 14:09:07 INFO main - enableSlaveActingMaster=false
+2025-11-14 14:09:07 INFO main - enableRemoteEscape=false
+2025-11-14 14:09:07 INFO main - skipPreOnline=false
+2025-11-14 14:09:07 INFO main - asyncSendEnable=true
+2025-11-14 14:09:07 INFO main - useServerSideResetOffset=false
+2025-11-14 14:09:07 INFO main - consumerOffsetUpdateVersionStep=500
+2025-11-14 14:09:07 INFO main - delayOffsetUpdateVersionStep=200
+2025-11-14 14:09:07 INFO main - lockInStrictMode=false
+2025-11-14 14:09:07 INFO main - compatibleWithOldNameSrv=true
+2025-11-14 14:09:07 INFO main - enableControllerMode=false
+2025-11-14 14:09:07 INFO main - controllerAddr=
+2025-11-14 14:09:07 INFO main - fetchControllerAddrByDnsLookup=false
+2025-11-14 14:09:07 INFO main - syncBrokerMetadataPeriod=5000
+2025-11-14 14:09:07 INFO main - checkSyncStateSetPeriod=5000
+2025-11-14 14:09:07 INFO main - syncControllerMetadataPeriod=10000
+2025-11-14 14:09:07 INFO main - controllerHeartBeatTimeoutMills=10000
+2025-11-14 14:09:07 INFO main - validateSystemTopicWhenUpdateTopic=true
+2025-11-14 14:09:07 INFO main - brokerElectionPriority=2147483647
+2025-11-14 14:09:07 INFO main - useStaticSubscription=false
+2025-11-14 14:09:07 INFO main - metricsExporterType=DISABLE
+2025-11-14 14:09:07 INFO main - metricsOtelCardinalityLimit=50000
+2025-11-14 14:09:07 INFO main - metricsGrpcExporterTarget=
+2025-11-14 14:09:07 INFO main - metricsGrpcExporterHeader=
+2025-11-14 14:09:07 INFO main - metricGrpcExporterTimeOutInMills=3000
+2025-11-14 14:09:07 INFO main - metricGrpcExporterIntervalInMills=60000
+2025-11-14 14:09:07 INFO main - metricLoggingExporterIntervalInMills=10000
+2025-11-14 14:09:07 INFO main - metricsPromExporterPort=5557
+2025-11-14 14:09:07 INFO main - metricsPromExporterHost=
+2025-11-14 14:09:07 INFO main - metricsLabel=
+2025-11-14 14:09:07 INFO main - metricsInDelta=false
+2025-11-14 14:09:07 INFO main - channelExpiredTimeout=120000
+2025-11-14 14:09:07 INFO main - subscriptionExpiredTimeout=600000
+2025-11-14 14:09:07 INFO main - estimateAccumulation=true
+2025-11-14 14:09:07 INFO main - coldCtrStrategyEnable=false
+2025-11-14 14:09:07 INFO main - usePIDColdCtrStrategy=true
+2025-11-14 14:09:07 INFO main - cgColdReadThreshold=3145728
+2025-11-14 14:09:07 INFO main - globalColdReadThreshold=104857600
+2025-11-14 14:09:07 INFO main - fetchNamesrvAddrInterval=10000
+2025-11-14 14:09:07 INFO main - popResponseReturnActualRetryTopic=false
+2025-11-14 14:09:07 INFO main - enableSingleTopicRegister=false
+2025-11-14 14:09:07 INFO main - enableMixedMessageType=false
+2025-11-14 14:09:07 INFO main - enableSplitRegistration=false
+2025-11-14 14:09:07 INFO main - splitRegistrationSize=800
+2025-11-14 14:09:07 INFO main - bindAddress=0.0.0.0
+2025-11-14 14:09:07 INFO main - listenPort=10911
+2025-11-14 14:09:07 INFO main - serverWorkerThreads=8
+2025-11-14 14:09:07 INFO main - serverCallbackExecutorThreads=0
+2025-11-14 14:09:07 INFO main - serverSelectorThreads=3
+2025-11-14 14:09:07 INFO main - serverOnewaySemaphoreValue=256
+2025-11-14 14:09:07 INFO main - serverAsyncSemaphoreValue=64
+2025-11-14 14:09:07 INFO main - serverChannelMaxIdleTimeSeconds=120
+2025-11-14 14:09:07 INFO main - serverSocketSndBufSize=0
+2025-11-14 14:09:07 INFO main - serverSocketRcvBufSize=0
+2025-11-14 14:09:07 INFO main - writeBufferHighWaterMark=0
+2025-11-14 14:09:07 INFO main - writeBufferLowWaterMark=0
+2025-11-14 14:09:07 INFO main - serverSocketBacklog=1024
+2025-11-14 14:09:07 INFO main - serverPooledByteBufAllocatorEnable=true
+2025-11-14 14:09:07 INFO main - useEpollNativeSelector=false
+2025-11-14 14:09:07 INFO main - clientWorkerThreads=4
+2025-11-14 14:09:07 INFO main - clientCallbackExecutorThreads=8
+2025-11-14 14:09:07 INFO main - clientOnewaySemaphoreValue=65535
+2025-11-14 14:09:07 INFO main - clientAsyncSemaphoreValue=65535
+2025-11-14 14:09:07 INFO main - connectTimeoutMillis=3000
+2025-11-14 14:09:07 INFO main - channelNotActiveInterval=60000
+2025-11-14 14:09:07 INFO main - clientChannelMaxIdleTimeSeconds=120
+2025-11-14 14:09:07 INFO main - clientSocketSndBufSize=0
+2025-11-14 14:09:07 INFO main - clientSocketRcvBufSize=0
+2025-11-14 14:09:07 INFO main - clientPooledByteBufAllocatorEnable=false
+2025-11-14 14:09:07 INFO main - clientCloseSocketIfTimeout=true
+2025-11-14 14:09:07 INFO main - useTLS=false
+2025-11-14 14:09:07 INFO main - socksProxyConfig={}
+2025-11-14 14:09:07 INFO main - writeBufferHighWaterMark=0
+2025-11-14 14:09:07 INFO main - writeBufferLowWaterMark=0
+2025-11-14 14:09:07 INFO main - disableCallbackExecutor=false
+2025-11-14 14:09:07 INFO main - disableNettyWorkerGroup=false
+2025-11-14 14:09:07 INFO main - storePathRootDir=/home/rocketmq/store
+2025-11-14 14:09:07 INFO main - storePathCommitLog=/home/rocketmq/store/commitlog
+2025-11-14 14:09:07 INFO main - storePathDLedgerCommitLog=
+2025-11-14 14:09:07 INFO main - storePathEpochFile=
+2025-11-14 14:09:07 INFO main - storePathBrokerIdentity=
+2025-11-14 14:09:07 INFO main - readOnlyCommitLogStorePaths=
+2025-11-14 14:09:07 INFO main - mappedFileSizeCommitLog=1073741824
+2025-11-14 14:09:07 INFO main - compactionMappedFileSize=104857600
+2025-11-14 14:09:10 INFO main - Looking for a resource file of name [META-INF/service/org.apache.rocketmq.store.ha.HAService] ...
+2025-11-14 14:09:10 WARN main - No resource file with name [META-INF/service/org.apache.rocketmq.store.ha.HAService] found.
+2025-11-14 14:09:16 INFO main - Set user specified name server address: rocketmq-namesrv:9876
+2025-11-14 14:09:16 INFO main - Looking for a resource file of name [META-INF/service/org.apache.rocketmq.broker.transaction.TransactionalMessageService] ...
+2025-11-14 14:09:16 WARN main - No resource file with name [META-INF/service/org.apache.rocketmq.broker.transaction.TransactionalMessageService] found.
+2025-11-14 14:09:16 INFO main - Try to start service thread:TransactionalOpBatchService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TransactionalOpBatchService started:true lastThread:Thread[TransactionalOpBatchService,5,main]
+2025-11-14 14:09:16 WARN main - Load default transaction message hook service: TransactionalMessageServiceImpl
+2025-11-14 14:09:16 INFO main - Looking for a resource file of name [META-INF/service/org.apache.rocketmq.broker.transaction.AbstractTransactionalMessageCheckListener] ...
+2025-11-14 14:09:16 WARN main - No resource file with name [META-INF/service/org.apache.rocketmq.broker.transaction.AbstractTransactionalMessageCheckListener] found.
+2025-11-14 14:09:16 WARN main - Load default discard message hook service: DefaultTransactionalMessageCheckListener
+2025-11-14 14:09:16 INFO main - The broker dose not enable acl
+2025-11-14 14:09:16 INFO main - Looking for a resource file of name [META-INF/service/org.apache.rocketmq.remoting.RPCHook] ...
+2025-11-14 14:09:16 WARN main - No resource file with name [META-INF/service/org.apache.rocketmq.remoting.RPCHook] found.
+2025-11-14 14:09:16 INFO main - Try to start service thread:AllocateMappedFileService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:AllocateMappedFileService started:true lastThread:Thread[AllocateMappedFileService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:ReputMessageService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:ReputMessageService started:true lastThread:Thread[ReputMessageService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:FlushConsumeQueueService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:FlushConsumeQueueService started:true lastThread:Thread[FlushConsumeQueueService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:FlushRealTimeService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:FlushRealTimeService started:true lastThread:Thread[FlushRealTimeService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:FlushDiskWatcher started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:FlushDiskWatcher started:true lastThread:Thread[FlushDiskWatcher,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:ColdDataCheckService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:ColdDataCheckService started:true lastThread:Thread[ColdDataCheckService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:StoreStatsService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:StoreStatsService started:true lastThread:Thread[StoreStatsService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:DefaultAcceptSocketService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:DefaultAcceptSocketService started:true lastThread:Thread[DefaultAcceptSocketService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:GroupTransferService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:GroupTransferService started:true lastThread:Thread[GroupTransferService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:HAConnectionStateNotificationService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:HAConnectionStateNotificationService started:true lastThread:Thread[HAConnectionStateNotificationService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:org.apache.rocketmq.store.util.PerfCounter$Ticks started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:org.apache.rocketmq.store.util.PerfCounter$Ticks started:true lastThread:Thread[org.apache.rocketmq.store.util.PerfCounter$Ticks,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerEnqueueGetService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerEnqueueGetService started:true lastThread:Thread[TimerEnqueueGetService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerEnqueuePutService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerEnqueuePutService started:true lastThread:Thread[TimerEnqueuePutService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeueWarmService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeueWarmService started:true lastThread:Thread[TimerDequeueWarmService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeueGetService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeueGetService started:true lastThread:Thread[TimerDequeueGetService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeueGetMessageService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeueGetMessageService started:true lastThread:Thread[TimerDequeueGetMessageService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeueGetMessageService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeueGetMessageService started:true lastThread:Thread[TimerDequeueGetMessageService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeueGetMessageService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeueGetMessageService started:true lastThread:Thread[TimerDequeueGetMessageService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeuePutMessageService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeuePutMessageService started:true lastThread:Thread[TimerDequeuePutMessageService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeuePutMessageService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeuePutMessageService started:true lastThread:Thread[TimerDequeuePutMessageService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerDequeuePutMessageService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerDequeuePutMessageService started:true lastThread:Thread[TimerDequeuePutMessageService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TimerFlushService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TimerFlushService started:true lastThread:Thread[TimerFlushService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:NettyEventExecutor started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:NettyEventExecutor started:true lastThread:Thread[NettyEventExecutor,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:NettyEventExecutor started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:NettyEventExecutor started:true lastThread:Thread[NettyEventExecutor,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopLongPollingService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopLongPollingService started:true lastThread:Thread[PopLongPollingService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopBufferMergeService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopBufferMergeService started:true lastThread:Thread[PopBufferMergeService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:QueueLockManager started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:QueueLockManager started:true lastThread:Thread[QueueLockManager,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_0 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_0 started:true lastThread:Thread[PopReviveService_0,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_1 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_1 started:true lastThread:Thread[PopReviveService_1,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_2 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_2 started:true lastThread:Thread[PopReviveService_2,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_3 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_3 started:true lastThread:Thread[PopReviveService_3,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_4 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_4 started:true lastThread:Thread[PopReviveService_4,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_5 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_5 started:true lastThread:Thread[PopReviveService_5,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_6 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_6 started:true lastThread:Thread[PopReviveService_6,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopReviveService_7 started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopReviveService_7 started:true lastThread:Thread[PopReviveService_7,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:PopLongPollingService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PopLongPollingService started:true lastThread:Thread[PopLongPollingService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:TopicQueueMappingCleanService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TopicQueueMappingCleanService started:true lastThread:Thread[TopicQueueMappingCleanService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:FileWatchService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:FileWatchService started:true lastThread:Thread[FileWatchService,5,main]
+2025-11-14 14:09:16 INFO TopicQueueMappingCleanService - Start topic queue mapping clean service thread!
+2025-11-14 14:09:16 INFO FileWatchService - FileWatchService service started
+2025-11-14 14:09:16 INFO main - Try to start service thread:PullRequestHoldService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:PullRequestHoldService started:true lastThread:Thread[PullRequestHoldService,5,main]
+2025-11-14 14:09:16 INFO PullRequestHoldService - PullRequestHoldService service started
+2025-11-14 14:09:16 INFO main - Try to start service thread:BroadcastOffsetManager started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:BroadcastOffsetManager started:true lastThread:Thread[BroadcastOffsetManager,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:ColdDataPullRequestHoldService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:ColdDataPullRequestHoldService started:true lastThread:Thread[ColdDataPullRequestHoldService,5,main]
+2025-11-14 14:09:16 INFO main - Try to start service thread:ColdDataCgCtrService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:ColdDataCgCtrService started:true lastThread:Thread[ColdDataCgCtrService,5,main]
+2025-11-14 14:09:16 INFO main - ScheduleServiceStatus changed to true
+2025-11-14 14:09:16 INFO main - TransactionCheckService status changed to true
+2025-11-14 14:09:16 INFO main - Try to start service thread:TransactionalMessageCheckService started:false lastThread:null
+2025-11-14 14:09:16 INFO main - Start service thread:TransactionalMessageCheckService started:true lastThread:Thread[TransactionalMessageCheckService,5,main]
+2025-11-14 14:09:16 INFO main - Set PopReviveService Status to true
+2025-11-14 14:09:17 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:09:17 INFO main - The broker[broker-a, 127.0.0.1:10911] boot success. serializeType=JSON and name server is rocketmq-namesrv:9876
+2025-11-14 14:09:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:09:27 INFO brokerOutApi_thread_2 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:09:57 INFO brokerOutApi_thread_3 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:10:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:10:27 INFO brokerOutApi_thread_4 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:10:57 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:11:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:11:27 INFO brokerOutApi_thread_2 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:11:57 INFO brokerOutApi_thread_3 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:12:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:12:27 INFO brokerOutApi_thread_4 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:12:57 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:13:28 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:13:28 INFO brokerOutApi_thread_2 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:13:57 INFO brokerOutApi_thread_3 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:14:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:14:27 INFO brokerOutApi_thread_4 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:14:57 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:15:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:15:27 INFO brokerOutApi_thread_2 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:15:57 INFO brokerOutApi_thread_3 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:16:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:16:27 INFO brokerOutApi_thread_4 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:16:57 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:17:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:17:27 INFO brokerOutApi_thread_2 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:17:57 INFO brokerOutApi_thread_3 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:18:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:18:27 INFO brokerOutApi_thread_4 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:18:58 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:19:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:19:27 INFO brokerOutApi_thread_2 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:19:57 INFO brokerOutApi_thread_3 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:20:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:20:27 INFO brokerOutApi_thread_4 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:20:57 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:21:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:21:27 INFO brokerOutApi_thread_2 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:21:57 INFO brokerOutApi_thread_3 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:22:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes
+2025-11-14 14:22:27 INFO brokerOutApi_thread_4 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:22:57 INFO brokerOutApi_thread_1 - Registering current broker to name server completed. TargetHost=rocketmq-namesrv:9876
+2025-11-14 14:23:26 INFO BrokerControllerScheduledThread1 - Dispatch task fall behind commit log 0bytes

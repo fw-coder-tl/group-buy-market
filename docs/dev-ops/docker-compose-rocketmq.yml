@@ -1,0 +1,76 @@
+# RocketMQ Docker Compose 配置
+# 启动命令: docker-compose -f docker-compose-rocketmq.yml up -d
+# 停止命令: docker-compose -f docker-compose-rocketmq.yml down
+# 查看日志: docker-compose -f docker-compose-rocketmq.yml logs -f
+
+version: '3.9'
+
+services:
+  # NameServer - RocketMQ 的命名服务
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.1.4
+    container_name: rocketmq-namesrv
+    restart: always
+    ports:
+      - "9876:9876"
+    environment:
+      JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -Xms512M -Xmx512M -Xmn256m"
+    command: sh mqnamesrv
+    volumes:
+      - ./rocketmq/namesrv/logs:/home/rocketmq/logs
+      - ./rocketmq/namesrv/store:/home/rocketmq/store
+    networks:
+      - rocketmq-network
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Broker - RocketMQ 的消息存储和转发服务
+  rocketmq-broker:
+    image: apache/rocketmq:5.1.4
+    container_name: rocketmq-broker
+    restart: always
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+      - "10912:10912"
+    environment:
+      NAMESRV_ADDR: "rocketmq-namesrv:9876"
+      JAVA_OPT_EXT: "-Duser.home=/home/rocketmq -Xms1024M -Xmx1024M -Xmn512m"
+    command: sh mqbroker -c /home/rocketmq/broker.conf
+    volumes:
+      - ./rocketmq/broker/logs:/home/rocketmq/logs
+      - ./rocketmq/broker/store:/home/rocketmq/store
+      - ./rocketmq/broker/conf/broker.conf:/home/rocketmq/broker.conf
+    depends_on:
+      rocketmq-namesrv:
+        condition: service_healthy
+    networks:
+      - rocketmq-network
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # RocketMQ Dashboard - Web 管理控制台
+  rocketmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:1.0.0
+    container_name: rocketmq-dashboard
+    restart: always
+    ports:
+      - "18080:8080"
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=rocketmq-namesrv:9876 -Dcom.rocketmq.sendMessageWithVIPChannel=false"
+    depends_on:
+      rocketmq-broker:
+        condition: service_healthy
+    networks:
+      - rocketmq-network
+
+networks:
+  rocketmq-network:
+    driver: bridge
+
