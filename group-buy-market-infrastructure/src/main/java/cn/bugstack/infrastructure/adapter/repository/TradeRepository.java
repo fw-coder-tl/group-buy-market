@@ -86,7 +86,7 @@ public class TradeRepository implements ITradeRepository {
                 .build();
     }
 
-    @Transactional(timeout = 500)
+    @Transactional(timeout = 3000)
     @Override
     public MarketPayOrderEntity lockMarketPayOrder(GroupBuyOrderAggregate groupBuyOrderAggregate) {
         // 聚合对象信息

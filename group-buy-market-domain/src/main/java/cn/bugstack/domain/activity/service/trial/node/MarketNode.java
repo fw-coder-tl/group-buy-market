@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  * @create 2025-11-6 14:30
  */
 @Slf4j
-@Service
+//@Service
 public class MarketNode extends AbstractGroupBuyMarketSupport<MarketProductEntity, DefaultActivityStrategyFactory.DynamicContext, TrialBalanceEntity> {
 
     @Resource

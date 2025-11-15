@@ -20,7 +20,7 @@ import java.util.concurrent.TimeoutException;
  * @create 2025-04-03 07:44
  */
 @Slf4j
-//@Service
+@Service
 public class MarketNode2CompletableFuture extends MarketNode {
 
     @Resource
