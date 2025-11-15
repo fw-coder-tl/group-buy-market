@@ -32,7 +32,7 @@ services:
 #      - SPRING_DATASOURCE_PASSWORD=123456
 #      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/s-pay-mall-ddd-market?serverTimezone=UTC&characterEncoding=utf8&autoReconnect=true&serverTimezone=Asia/Shanghai
 #      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
-#      - SPRING_HIKARI_POOL_NAME=Retail_HikariCP
+#      - SPRING_HIKARI_POOL_NAM E=Retail_HikariCP
 #      - SPRING_RABBITMQ_ADDRESSES=rabbitmq
 #      - SPRING_RABBITMQ_PORT=5672
 #      - SPRING_RABBITMQ_USERNAME=admin

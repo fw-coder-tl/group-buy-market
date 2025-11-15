@@ -32,17 +32,14 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
     hikari:
       pool-name: Retail_HikariCP
-      minimum-idle: 50 #最小空闲连接数量（从30增加到50）
+      minimum-idle: 30 #最小空闲连接数量
       idle-timeout: 60000 #空闲连接存活最大时间，默认600000（10分钟）
-      maximum-pool-size: 200 #连接池最大连接数（从100增加到200）
+      maximum-pool-size: 100 #连接池最大连接数，默认是10
       auto-commit: true  #此属性控制从池返回的连接的默认自动提交行为,默认值：true
       max-lifetime: 300000 #此属性控制池中连接的最长生命周期，值0表示无限生命周期，默认1800000即30分钟
-      connection-timeout: 10000 #数据库连接超时时间（从30秒减少到10秒，快速失败）
+      connection-timeout: 30000 #数据库连接超时时间,默认30秒，即30000
       connection-test-query: SELECT 1
       register-mbeans: true
-      # 性能优化参数
-      leak-detection-threshold: 60000 #连接泄漏检测阈值（60秒）
-      validation-timeout: 3000 #连接验证超时时间（3秒）
   # RabbitMQ
   rabbitmq:
     addresses: 127.0.0.1
