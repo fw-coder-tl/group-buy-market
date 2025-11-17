@@ -6,9 +6,11 @@ server:
       enabled: true
     max-connections: 10000 # 最大连接数
     threads:
-      max: 200         # 设定处理客户请求的线程的最大数目，决定了服务器可以同时响应客户请求的数,默认200
-      min-spare: 50   # 初始化线程数,最小空闲线程数,默认是10
-    accept-count: 100  # 等待队列长度
+      max: 800         # 提高并发处理能力（按机器资源可调低为400/200）
+      min-spare: 50   # 初始化线程数,最小空闲线程数
+    accept-count: 1000  # 等待队列长度
+    connection-timeout: 5s
+    keep-alive-timeout: 60s
 
 # 线程池配置
 thread:

@@ -31,8 +31,6 @@ import java.util.Objects;
 
 /**
  * @author liang.tian
- * @description 营销交易服务
- * @create 2025-11-10 14:01
  */
 @Slf4j
 @RestController()
