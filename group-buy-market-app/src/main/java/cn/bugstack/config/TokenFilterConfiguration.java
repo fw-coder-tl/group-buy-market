@@ -23,7 +23,7 @@ public class TokenFilterConfiguration {
         registrationBean.setFilter(new TokenFilter(redissonClient));
         
         // 配置需要Token校验的URL
-        registrationBean.addUrlPatterns("/api/v1/gbm/trade/lock_market_pay_order/1");
+        registrationBean.addUrlPatterns("/api/v1/gbm/trade/lock_market_pay_order");
         
         // 设置过滤器顺序
         registrationBean.setOrder(10);
