@@ -15,9 +15,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 组队库存占用规则过滤
- * @create 2025-04-05 09:41
+ * @author liang.tian
  */
 @Slf4j
 @Service

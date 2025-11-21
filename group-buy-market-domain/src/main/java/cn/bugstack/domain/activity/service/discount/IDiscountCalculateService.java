@@ -5,9 +5,7 @@ import cn.bugstack.domain.activity.model.valobj.GroupBuyActivityDiscountVO;
 import java.math.BigDecimal;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 折扣计算服务
- * @create 2024-12-22 09:17
+ * @author liang.tian
  */
 public interface IDiscountCalculateService {
 

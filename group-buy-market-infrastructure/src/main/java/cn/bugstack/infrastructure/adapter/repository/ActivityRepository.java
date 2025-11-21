@@ -15,9 +15,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 活动仓储
- * @create 2024-12-21 10:10
+ * @author liang.tian
  */
 @Repository
 public class ActivityRepository extends AbstractRepository implements IActivityRepository {

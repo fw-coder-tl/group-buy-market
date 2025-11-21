@@ -6,9 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 队伍统计值对象
- * @create 2025-02-02 15:21
+ * @author liang.tian
  */
 @Getter
 @Builder
