@@ -72,7 +72,11 @@ public class TokenFilter extends OncePerRequestFilter {
             // 校验Token的有效性
             boolean isValid = checkTokenValidity(token);
             if (!isValid) {
-                log.error("Token校验失败: Token无效或已过期, token: {}", token);
+                // log.error("Token校验失败: Token无效或已过期, token: {}", token);
+                // 优化：降低日志级别，减少日志内容，避免高并发IO瓶颈
+                if (log.isDebugEnabled()) {
+                    log.warn("Token校验失败: Token无效或已过期, token: {}", token);
+                }
                 writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Token无效或已被使用");
                 return;
             }
@@ -110,10 +114,13 @@ public class TokenFilter extends OncePerRequestFilter {
             TOKEN_THREAD_LOCAL.set(result);
             return result != null;
         } catch (RedisException e) {
+            // Redis异常通常是连接问题，可以保留Error级别，但要注意频率
             log.error("Token校验失败: Redis异常", e);
             return false;
         } catch (Exception e) {
-            log.error("Token校验失败: 解密异常", e);
+            // 优化：解密异常通常是攻击或错误Token导致，无需打印堆栈，改为Warn级别
+            // log.error("Token校验失败: 解密异常", e);
+            log.warn("Token校验失败: 格式错误或解密失败");
             return false;
         }
     }
