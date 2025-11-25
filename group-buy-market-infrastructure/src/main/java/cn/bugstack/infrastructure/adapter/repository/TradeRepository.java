@@ -1,6 +1,7 @@
 package cn.bugstack.infrastructure.adapter.repository;
 
 import cn.bugstack.domain.activity.model.entity.UserGroupBuyOrderDetailEntity;
+import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyOrderAggregate;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyRefundAggregate;
@@ -68,12 +69,33 @@ public class TradeRepository implements ITradeRepository {
     @Resource
     private IRedisService redisService;
 
+    @Resource
+    private ISkuRepository skuRepository;  // 新增注入
+
     @Override
     public MarketPayOrderEntity queryMarketPayOrderEntityByOutTradeNo(String userId, String outTradeNo) {
         GroupBuyOrderList groupBuyOrderListReq = new GroupBuyOrderList();
         groupBuyOrderListReq.setUserId(userId);
         groupBuyOrderListReq.setOutTradeNo(outTradeNo);
         GroupBuyOrderList groupBuyOrderListRes = groupBuyOrderListDao.queryGroupBuyOrderRecordByOutTradeNo(groupBuyOrderListReq);
+        if (null == groupBuyOrderListRes) return null;
+
+        return MarketPayOrderEntity.builder()
+                .teamId(groupBuyOrderListRes.getTeamId())
+                .orderId(groupBuyOrderListRes.getOrderId())
+                .originalPrice(groupBuyOrderListRes.getOriginalPrice())
+                .deductionPrice(groupBuyOrderListRes.getDeductionPrice())
+                .payPrice(groupBuyOrderListRes.getPayPrice())
+                .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.valueOf(groupBuyOrderListRes.getStatus()))
+                .build();
+    }
+
+    @Override
+    public MarketPayOrderEntity queryMarketPayOrderEntityByOrderId(String userId, String orderId) {
+        GroupBuyOrderList groupBuyOrderListReq = new GroupBuyOrderList();
+        groupBuyOrderListReq.setUserId(userId);
+        groupBuyOrderListReq.setOrderId(orderId);
+        GroupBuyOrderList groupBuyOrderListRes = groupBuyOrderListDao.queryGroupBuyOrderRecordByOrderId(groupBuyOrderListReq);
         if (null == groupBuyOrderListRes) return null;
 
         return MarketPayOrderEntity.builder()
@@ -137,7 +159,7 @@ public class TradeRepository implements ITradeRepository {
         calendar.add(Calendar.MINUTE, payActivityEntity.getValidTime());
 
         // 使用 RandomStringUtils.randomNumeric 替代公司里使用的雪花算法UUID
-        String orderId = RandomStringUtils.randomNumeric(12);
+        String orderId = groupBuyOrderAggregate.getOrderId();
         GroupBuyOrderList groupBuyOrderListReq = GroupBuyOrderList.builder()
                 .userId(userEntity.getUserId())
                 .teamId(teamId)
@@ -458,6 +480,7 @@ public class TradeRepository implements ITradeRepository {
             put("orderId", tradeRefundOrderEntity.getOrderId());
             put("outTradeNo", tradeRefundOrderEntity.getOutTradeNo());
             put("activityId", tradeRefundOrderEntity.getActivityId());
+            put("goodsId", tradeRefundOrderEntity.getGoodsId());  // 新增 goodsId
         }}));
 
         notifyTaskDao.insert(notifyTask);
@@ -518,6 +541,7 @@ public class TradeRepository implements ITradeRepository {
             put("orderId", tradeRefundOrderEntity.getOrderId());
             put("outTradeNo", tradeRefundOrderEntity.getOutTradeNo());
             put("activityId", tradeRefundOrderEntity.getActivityId());
+            put("goodsId", tradeRefundOrderEntity.getGoodsId());
         }}));
 
         notifyTaskDao.insert(notifyTask);
@@ -588,6 +612,7 @@ public class TradeRepository implements ITradeRepository {
             put("orderId", tradeRefundOrderEntity.getOrderId());
             put("outTradeNo", tradeRefundOrderEntity.getOutTradeNo());
             put("activityId", tradeRefundOrderEntity.getActivityId());
+            put("goodsId", tradeRefundOrderEntity.getGoodsId());
         }}));
 
         notifyTaskDao.insert(notifyTask);
@@ -609,27 +634,65 @@ public class TradeRepository implements ITradeRepository {
         }
 
         // 使用orderId作为锁的key，避免同一订单重复恢复库存
-        String lockKey = "refund_lock_" + orderId;
-        
+        String lockKey = "refund_lock_team_" + orderId;
+
         // 尝试获取分布式锁，防止重复操作 30天过期
         Boolean lockAcquired = redisService.setNx(lockKey, 30 * 24 * 60 * 60 * 1000L, TimeUnit.MINUTES);
-        
+
         if (!lockAcquired) {
-            log.warn("订单 {} 恢复库存操作已在进行中，跳过重复操作", orderId);
+            log.warn("订单 {} 恢复队伍库存操作已在进行中，跳过重复操作", orderId);
             return;
         }
 
         try {
             // 在锁保护下执行库存恢复操作
             redisService.incr(recoveryTeamStockKey);
-            log.info("订单 {} 恢复库存成功，恢复库存key: {}", orderId, recoveryTeamStockKey);
+            log.info("订单 {} 恢复队伍库存成功，恢复库存key: {}", orderId, recoveryTeamStockKey);
         } catch (Exception e) {
-            log.error("订单 {} 恢复库存失败，恢复库存key: {}", orderId, recoveryTeamStockKey, e);
+            log.error("订单 {} 恢复队伍库存失败，恢复库存key: {}", orderId, recoveryTeamStockKey, e);
             // 如果抛异常则释放锁，允许MQ重新消费恢复库存
             redisService.remove(lockKey);
             throw e;
         }
+    }
 
+    @Override
+    public void refund2ReleaseSkuStock(Long activityId, String goodsId, String orderId, Integer quantity) {
+        if (activityId == null || StringUtils.isBlank(goodsId) || StringUtils.isBlank(orderId)) {
+            log.warn("退单恢复SKU库存参数为空: activityId={}, goodsId={}, orderId={}", activityId, goodsId, orderId);
+            return;
+        }
+
+        // 使用orderId作为锁的key，避免同一订单重复恢复SKU库存
+        String lockKey = "refund_lock_sku_" + orderId;
+
+        // 尝试获取分布式锁，防止重复操作 30天过期
+        Boolean lockAcquired = redisService.setNx(lockKey, 30 * 24 * 60 * 60 * 1000L, TimeUnit.MINUTES);
+
+        if (!lockAcquired) {
+            log.warn("订单 {} 恢复SKU库存操作已在进行中，跳过重复操作", orderId);
+            return;
+        }
+
+        try {
+            // 在锁保护下执行SKU库存恢复操作
+            boolean releaseResult = skuRepository.releaseSkuStock(activityId, goodsId, quantity);
+            if (releaseResult) {
+                log.info("订单 {} 恢复SKU库存成功: activityId={}, goodsId={}, quantity={}",
+                        orderId, activityId, goodsId, quantity);
+            } else {
+                log.error("订单 {} 恢复SKU库存失败: activityId={}, goodsId={}, quantity={}",
+                        orderId, activityId, goodsId, quantity);
+                // 失败时释放锁，允许重试
+                redisService.remove(lockKey);
+                throw new RuntimeException("SKU库存恢复失败");
+            }
+        } catch (Exception e) {
+            log.error("订单 {} 恢复SKU库存异常: activityId={}, goodsId={}", orderId, activityId, goodsId, e);
+            // 如果抛异常则释放锁，允许MQ重新消费恢复库存
+            redisService.remove(lockKey);
+            throw e;
+        }
     }
 
     @Override

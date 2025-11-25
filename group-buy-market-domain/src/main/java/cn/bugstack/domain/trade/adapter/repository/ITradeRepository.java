@@ -21,6 +21,14 @@ public interface ITradeRepository {
 
     MarketPayOrderEntity queryMarketPayOrderEntityByOutTradeNo(String userId, String outTradeNo);
 
+    /**
+     * 通过订单ID查询订单实体
+     * @param userId 用户ID
+     * @param orderId 订单ID
+     * @return 订单实体
+     */
+    MarketPayOrderEntity queryMarketPayOrderEntityByOrderId(String userId, String orderId);
+
     MarketPayOrderEntity lockMarketPayOrder(GroupBuyOrderAggregate groupBuyOrderAggregate);
 
     GroupBuyProgressVO queryGroupBuyProgress(String teamId);
@@ -55,8 +63,22 @@ public interface ITradeRepository {
 
     NotifyTaskEntity paidTeam2Refund(GroupBuyRefundAggregate groupBuyRefundAggregate);
 
-    void refund2AddRecovery(String recoveryTeamStockKey, String orderId);
+//    void refund2AddRecovery(String recoveryTeamStockKey, String orderId);
 
     List<UserGroupBuyOrderDetailEntity> queryTimeoutUnpaidOrderList();
+
+    /**
+     * 退单恢复队伍库存
+     */
+    void refund2AddRecovery(String recoveryTeamStockKey, String orderId);
+
+    /**
+     * 退单恢复商品库存（新增）
+     * @param activityId 活动ID
+     * @param goodsId 商品ID
+     * @param orderId 订单ID
+     * @param quantity 恢复数量
+     */
+    void refund2ReleaseSkuStock(Long activityId, String goodsId, String orderId, Integer quantity);
 
 }

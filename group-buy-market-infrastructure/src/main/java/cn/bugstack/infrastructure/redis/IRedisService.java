@@ -286,4 +286,12 @@ public interface IRedisService {
         }
     }
 
+//     Long decreaseStockWithLog(String stockKey, String logKey, String identifier, int count);
+//
+//    String getStockDecreaseLog(String logKey, String identifier);
+//
+//    void removeStockDecreaseLog(String logKey, String identifier);
+//
+//    Long increaseStockWithLog(String stockKey, String logKey, String identifier, int count);
+
 }

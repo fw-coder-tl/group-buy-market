@@ -45,6 +45,14 @@
         where out_trade_no = #{outTradeNo} and user_id = #{userId}
     </select>
 
+    <select id="queryGroupBuyOrderRecordByOrderId"
+            parameterType="cn.bugstack.infrastructure.dao.po.GroupBuyOrderList" resultMap="dataMap">
+        select user_id, team_id, order_id, activity_id, start_time,
+        end_time, goods_id, source, channel, original_price, deduction_price, pay_price, status
+        from group_buy_order_list
+        where order_id = #{orderId} and user_id = #{userId}
+    </select>
+
     <select id="queryOrderCountByActivityId" parameterType="cn.bugstack.infrastructure.dao.po.GroupBuyOrderList"
             resultType="java.lang.Integer">
         select count(id) from group_buy_order_list

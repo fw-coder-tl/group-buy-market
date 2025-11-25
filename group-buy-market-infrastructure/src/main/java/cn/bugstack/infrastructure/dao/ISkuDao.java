@@ -13,4 +13,6 @@ public interface ISkuDao {
 
     Sku querySkuByGoodsId(String goodsId);
 
+
+
 }

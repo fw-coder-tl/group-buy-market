@@ -50,10 +50,9 @@ public class TeamStockOccupyRuleFilter implements ILogicHandler<TradeLockRuleCom
             throw new AppException(ResponseCode.E0008);
         }
 
-        return TradeLockRuleFilterBackEntity.builder()
-                .userTakeOrderCount(dynamicContext.getUserTakeOrderCount())
-                .recoveryTeamStockKey(recoveryTeamStockKey)
-                .build();
+        dynamicContext.setRecoveryTeamStockKey(recoveryTeamStockKey);
+
+        return next(requestParameter, dynamicContext);
     }
 
 }

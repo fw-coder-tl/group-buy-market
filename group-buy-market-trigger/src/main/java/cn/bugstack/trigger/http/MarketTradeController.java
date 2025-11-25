@@ -5,9 +5,7 @@ import cn.bugstack.api.dto.*;
 import cn.bugstack.api.response.Response;
 import cn.bugstack.domain.activity.model.entity.MarketProductEntity;
 import cn.bugstack.domain.activity.model.entity.TrialBalanceEntity;
-import cn.bugstack.domain.activity.model.entity.UserGroupBuyOrderDetailEntity;
 import cn.bugstack.domain.activity.model.valobj.GroupBuyActivityDiscountVO;
-import cn.bugstack.domain.activity.model.valobj.TeamStatisticVO;
 import cn.bugstack.domain.activity.service.IIndexGroupBuyMarketService;
 import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.GroupBuyProgressVO;
@@ -25,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -291,4 +290,14 @@ public class MarketTradeController implements IMarketTradeService {
         }
     }
 
+    /**
+     * 秒杀下单（不基于inventory hint的实现），热点商品，同步创建订单
+     *
+     * @param
+     * @return 幂等号
+     */
+    @RequestMapping(value = "/newBuy", method = RequestMethod.POST)
+    public Response<String> newBuy(@Valid @RequestBody BuyParam buyParam) {
+        return null;
+    }
 }

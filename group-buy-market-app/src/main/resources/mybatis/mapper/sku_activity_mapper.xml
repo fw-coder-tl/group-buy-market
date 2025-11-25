@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.bugstack.infrastructure.dao.ISkuActivityDao">
+
+    <resultMap id="skuActivityMap" type="cn.bugstack.infrastructure.dao.po.SkuActivity">
+        <result column="activity_id" property="activityId"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="saleable_inventory" property="saleableInventory"/>
+        <result column="frozen_inventory" property="frozenInventory"/>
+        <result column="lock_version" property="lockVersion"/>
+    </resultMap>
+
+    <!-- 扣减可售库存（下单时冻结）- 乐观锁 -->
+    <update id="decreaseSkuStock">
+        UPDATE sku_activity
+        SET frozen_inventory = frozen_inventory + #{quantity},
+            lock_version = lock_version + 1
+        WHERE activity_id = #{activityId}
+          AND goods_id = #{goodsId}
+          AND saleable_inventory - frozen_inventory >= #{quantity}
+          AND lock_version = #{oldVersion}
+    </update>
+
+    <!-- 支付成功：冻结库存转为已售 -->
+    <update id="confirmSkuStock">
+        UPDATE sku_activity
+        SET saleable_inventory = saleable_inventory - #{quantity},
+            frozen_inventory = frozen_inventory - #{quantity},
+            lock_version = lock_version + 1
+        WHERE activity_id = #{activityId}
+          AND goods_id = #{goodsId}
+          AND frozen_inventory >= #{quantity}
+    </update>
+
+    <!-- 取消订单：释放冻结库存 -->
+    <update id="releaseSkuStock">
+        UPDATE sku_activity
+        SET frozen_inventory = frozen_inventory - #{quantity},
+            lock_version = lock_version + 1
+        WHERE activity_id = #{activityId}
+          AND goods_id = #{goodsId}
+          AND frozen_inventory >= #{quantity}
+    </update>
+
+    <!-- 查询SKU库存信息 -->
+    <select id="querySkuActivity" resultMap="skuActivityMap">
+        SELECT activity_id, goods_id, saleable_inventory, frozen_inventory, lock_version
+        FROM sku_activity
+        WHERE activity_id = #{activityId}
+          AND goods_id = #{goodsId}
+    </select>
+
+</mapper>

@@ -34,8 +34,6 @@ public abstract class AbstractRefundOrderStrategy implements IRefundOrderStrateg
 
     /**
      * 异步发送MQ消息
-     * @param notifyTaskEntity 通知任务实体
-     * @param refundType 退单类型描述
      */
     protected void sendRefundNotifyMessage(NotifyTaskEntity notifyTaskEntity, String refundType) {
         if (null != notifyTaskEntity) {
@@ -53,17 +51,31 @@ public abstract class AbstractRefundOrderStrategy implements IRefundOrderStrateg
     }
 
     /**
-     * 通用库存恢复逻辑
-     * @param teamRefundSuccess 团队退单成功信息
-     * @param refundType 退单类型描述
-     * @throws Exception 异常
+     * 通用库存恢复逻辑（队伍库存 + SKU库存）
      */
     protected void doReverseStock(TeamRefundSuccess teamRefundSuccess, String refundType) throws Exception {
-        log.info("退单；恢复锁单量 - {} {} {} {}", refundType, teamRefundSuccess.getUserId(), teamRefundSuccess.getActivityId(), teamRefundSuccess.getTeamId());
-        // 1. 恢复库存key
-        String recoveryTeamStockKey = TradeLockRuleFilterFactory.generateRecoveryTeamStockKey(teamRefundSuccess.getActivityId(), teamRefundSuccess.getTeamId());
-        // 2. 退单恢复库存
-        repository.refund2AddRecovery(recoveryTeamStockKey, teamRefundSuccess.getOrderId());
-    }
+        log.info("退单；恢复库存 - {} userId:{} activityId:{} teamId:{} orderId:{}",
+                refundType,
+                teamRefundSuccess.getUserId(),
+                teamRefundSuccess.getActivityId(),
+                teamRefundSuccess.getTeamId(),
+                teamRefundSuccess.getOrderId());
 
+        // 1. 恢复队伍库存
+        String recoveryTeamStockKey = TradeLockRuleFilterFactory.generateRecoveryTeamStockKey(
+                teamRefundSuccess.getActivityId(),
+                teamRefundSuccess.getTeamId()
+        );
+        repository.refund2AddRecovery(recoveryTeamStockKey, teamRefundSuccess.getOrderId());
+
+        // 2. 恢复SKU库存（新增）
+        repository.refund2ReleaseSkuStock(
+                teamRefundSuccess.getActivityId(),
+                teamRefundSuccess.getGoodsId(),  // 需要在 TeamRefundSuccess 中添加 goodsId 字段
+                teamRefundSuccess.getOrderId(),
+                1  // 恢复数量
+        );
+
+        log.info("退单；恢复库存完成 - {} orderId:{}", refundType, teamRefundSuccess.getOrderId());
+    }
 }

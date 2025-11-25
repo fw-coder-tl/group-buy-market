@@ -22,5 +22,7 @@ public class TradeLockRuleCommandEntity {
     private Long activityId;
     /** 组队ID */
     private String teamId;
+    /** 商品ID */
+    private String goodsId;
 
 }

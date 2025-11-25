@@ -1,4 +1,4 @@
-package cn.bugstack.infrastructure.dao.po;
+package cn.bugstack.domain.trade.model.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -6,25 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.util.Date;
 
-/**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 商品信息
- * @create 2024-12-21 10:45
- */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Sku {
+public class SkuEntity {
 
-    /** 自增 */
-    private Long id;
-    /** 来源 */
-    private String source;
-    /** 渠道 */
-    private String channel;
     /** 商品ID */
     private String goodsId;
     /** 商品名称 */
@@ -37,9 +25,5 @@ public class Sku {
     private Integer frozen_inventory;
     /** 乐观锁版本号*/
     private Integer lock_version;
-    /** 创建时间 */
-    private Date createTime;
-    /** 更新时间 */
-    private Date updateTime;
 
 }

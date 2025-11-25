@@ -17,6 +17,13 @@ public interface IGroupBuyOrderListDao {
 
     GroupBuyOrderList queryGroupBuyOrderRecordByOutTradeNo(GroupBuyOrderList groupBuyOrderListReq);
 
+    /**
+     * 通过订单ID查询订单记录
+     * @param groupBuyOrderListReq 包含userId和orderId的查询对象
+     * @return 订单记录
+     */
+    GroupBuyOrderList queryGroupBuyOrderRecordByOrderId(GroupBuyOrderList groupBuyOrderListReq);
+
     Integer queryOrderCountByActivityId(GroupBuyOrderList groupBuyOrderListReq);
 
     int updateOrderStatus2COMPLETE(GroupBuyOrderList groupBuyOrderListReq);

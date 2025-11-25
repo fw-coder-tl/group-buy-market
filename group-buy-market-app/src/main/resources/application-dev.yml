@@ -70,6 +70,15 @@ spring:
           routing_key: topic.team_refund
           # 消费队列
           queue: group_buy_market_queue_2_topic_team_refund
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: group-buy-market-producer-group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+  consumer:
+    group: group-buy-market-consumer-group
+    pull-batch-size: 32
 
 # MyBatis 配置【如需使用记得打开】
 mybatis:

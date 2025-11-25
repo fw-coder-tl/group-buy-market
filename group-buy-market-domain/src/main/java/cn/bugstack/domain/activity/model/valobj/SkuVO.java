@@ -24,5 +24,11 @@ public class SkuVO {
     private String goodsName;
     /** 原始价格 */
     private BigDecimal originalPrice;
+    /** 可售库存*/
+    private Integer saleable_inventory;
+    /** 冻结库存（已下单未支付）*/
+    private Integer frozen_inventory;
+    /** 乐观锁版本号*/
+    private Integer lock_version;
 
 }

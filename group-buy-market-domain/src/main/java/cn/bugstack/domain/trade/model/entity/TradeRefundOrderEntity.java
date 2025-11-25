@@ -42,4 +42,9 @@ public class TradeRefundOrderEntity {
      */
     private String outTradeNo;
 
+    /**
+     * 商品ID（新增）
+     */
+    private String goodsId;
+
 }

@@ -1,5 +1,6 @@
 package cn.bugstack.domain.trade.model.entity;
 
+import cn.bugstack.domain.activity.model.valobj.SkuVO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,5 +24,11 @@ public class TradeLockRuleFilterBackEntity {
 
     // 恢复组队库存缓存key
     private String recoveryTeamStockKey;
+
+    // 交易订单号
+    private String orderId;
+
+    // 商品信息
+    private SkuVO skuVO;
 
 }

@@ -13,35 +13,24 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TeamRefundSuccess {
-
-    /**
-     * 退单类型
-     */
-    private String type;
-
-    /**
-     * 用户ID
-     */
+    /** 用户ID */
     private String userId;
 
-    /**
-     * 拼单组队ID
-     */
-    private String teamId;
-
-    /**
-     * 活动ID
-     */
+    /** 活动ID */
     private Long activityId;
 
-    /**
-     * 预购订单ID
-     */
+    /** 队伍ID */
+    private String teamId;
+
+    /** 订单ID */
     private String orderId;
 
-    /**
-     * 外部交易单号
-     */
+    /** 外部交易订单号 */
     private String outTradeNo;
 
+    /** 商品ID（新增） */
+    private String goodsId;
+
+    /** 退单类型 */
+    private String type;
 }
