@@ -37,17 +37,19 @@ public class TradeLockRuleFilterFactory {
     @Bean("tradeRuleFilter")
     public BusinessLinkedList<TradeLockRuleCommandEntity, DynamicContext, TradeLockRuleFilterBackEntity> tradeRuleFilter(
             ActivityUsabilityRuleFilter activityUsabilityRuleFilter,
-            UserTakeLimitRuleFilter userTakeLimitRuleFilter,
-            TeamStockOccupyRuleFilter teamStockOccupyRuleFilter,
-            GoodsStockOccupyRuleFilter goodsStockOccupyRuleFilter) {
+            UserTakeLimitRuleFilter userTakeLimitRuleFilter
+            //TeamStockOccupyRuleFilter teamStockOccupyRuleFilter,
+            //GoodsStockOccupyRuleFilter goodsStockOccupyRuleFilter
+    ) {
 
         // 组装链
         LinkArmory<TradeLockRuleCommandEntity, DynamicContext, TradeLockRuleFilterBackEntity> linkArmory =
                 new LinkArmory<>("交易规则过滤链",
                         activityUsabilityRuleFilter,
-                        userTakeLimitRuleFilter,
-                        teamStockOccupyRuleFilter,
-                        goodsStockOccupyRuleFilter);
+                        userTakeLimitRuleFilter
+                        //teamStockOccupyRuleFilter,
+                        //goodsStockOccupyRuleFilter
+                );
 
         // 链对象
         return linkArmory.getLogicLink();

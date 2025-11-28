@@ -129,6 +129,18 @@ management:
   prometheus:
     enabled: true # 启用Prometheus端点
 
+# XXL-Job 配置（参考 NFTurbo）
+xxl:
+  job:
+    enabled: true
+    admin-addresses: http://127.0.0.1:8080/xxl-job-admin/  # XXL-Job 管理平台地址
+    app-name: group-buy-market-executor  # 执行器应用名称（需要在 XXL-Job 管理平台创建）
+    access-token: default_token  # 访问令牌（需要在 XXL-Job 管理平台配置）
+    ip:  # 执行器 IP（可选，为空则自动获取）
+    port: 9999  # 执行器端口
+    log-path: /data/applogs/xxl-job/jobhandler  # 日志路径
+    log-retention-days: 30  # 日志保留天数
+
 # 日志
 logging:
   level:

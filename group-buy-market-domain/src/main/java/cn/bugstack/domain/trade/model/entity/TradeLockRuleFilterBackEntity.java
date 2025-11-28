@@ -9,9 +9,7 @@ import lombok.NoArgsConstructor;
 import java.util.Date;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 拼团交易，过滤反馈实体
- * @create 2025-01-25 14:16
+ * @author liang.tian
  */
 @Data
 @Builder
@@ -25,10 +23,7 @@ public class TradeLockRuleFilterBackEntity {
     // 恢复组队库存缓存key
     private String recoveryTeamStockKey;
 
-    // 交易订单号
-    private String orderId;
-
-    // 商品信息
-    private SkuVO skuVO;
+    // 队伍的目标量
+    private Integer targetCount;
 
 }

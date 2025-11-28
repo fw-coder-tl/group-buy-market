@@ -48,9 +48,6 @@ public class ActivityUsabilityRuleFilter implements ILogicHandler<TradeLockRuleC
         // 写入动态上下文
         dynamicContext.setGroupBuyActivity(groupBuyActivity);
 
-        // goodsId写入动态上下文
-        dynamicContext.setGoodsId(requestParameter.getGoodsId());
-
         // 走到下一个责任链节点
         return next(requestParameter, dynamicContext);
     }

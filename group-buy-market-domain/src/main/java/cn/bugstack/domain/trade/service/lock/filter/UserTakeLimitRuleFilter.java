@@ -40,7 +40,12 @@ public class UserTakeLimitRuleFilter implements ILogicHandler<TradeLockRuleComma
         dynamicContext.setUserTakeOrderCount(count);
 
         // 走到下一个责任链节点
-        return next(requestParameter, dynamicContext);
+//        return next(requestParameter, dynamicContext);
+        return TradeLockRuleFilterBackEntity.builder()
+                .userTakeOrderCount(dynamicContext.getUserTakeOrderCount())
+                .recoveryTeamStockKey(dynamicContext.getRecoveryTeamStockKey())
+                .targetCount(groupBuyActivity.getTarget())
+                .build();
     }
 
 }

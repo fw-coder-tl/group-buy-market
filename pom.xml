@@ -200,6 +200,13 @@
                 <version>2.3.1</version>
             </dependency>
 
+            <!-- XXL-Job -->
+            <dependency>
+                <groupId>com.xuxueli</groupId>
+                <artifactId>xxl-job-core</artifactId>
+                <version>2.4.0</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 

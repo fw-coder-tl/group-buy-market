@@ -18,7 +18,7 @@ import javax.annotation.Resource;
  * @author liang.tian
  */
 @Slf4j
-@Service
+//@Service
 public class TeamStockOccupyRuleFilter implements ILogicHandler<TradeLockRuleCommandEntity, TradeLockRuleFilterFactory.DynamicContext, TradeLockRuleFilterBackEntity> {
 
     @Resource
@@ -49,8 +49,6 @@ public class TeamStockOccupyRuleFilter implements ILogicHandler<TradeLockRuleCom
             log.warn("交易规则过滤-组队库存校验{} activityId:{} 抢占失败:{}", requestParameter.getUserId(), requestParameter.getActivityId(), teamStockKey);
             throw new AppException(ResponseCode.E0008);
         }
-
-        dynamicContext.setRecoveryTeamStockKey(recoveryTeamStockKey);
 
         return next(requestParameter, dynamicContext);
     }

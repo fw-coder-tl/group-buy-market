@@ -7,9 +7,11 @@ public interface ISkuRepository {
      * @param activityId 活动ID
      * @param goodsId 商品ID
      * @param quantity 扣减数量
+     * @param orderId 订单ID（用于幂等性检查）
+     * @param userId 用户ID（用于记录流水）
      * @return 是否扣减成功
      */
-    boolean decreaseSkuStock(Long activityId, String goodsId, Integer quantity);
+    boolean decreaseSkuStock(Long activityId, String goodsId, Integer quantity, String orderId, String userId);
     
     /**
      * 支付成功：冻结库存转为已售

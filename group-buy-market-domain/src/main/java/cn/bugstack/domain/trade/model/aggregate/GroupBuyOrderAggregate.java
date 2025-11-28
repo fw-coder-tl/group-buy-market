@@ -31,5 +31,7 @@ public class GroupBuyOrderAggregate {
     private Integer userTakeOrderCount;
     /** 订单ID（使用雪花算法生成） */
     private String orderId;
+    /** 队伍的目标量 */
+    private Integer targetCount;
 
 }
