@@ -15,6 +15,9 @@ import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import cn.bugstack.domain.trade.service.ITradeLockOrderService;
 import cn.bugstack.domain.trade.service.ITradeRefundOrderService;
 import cn.bugstack.domain.trade.service.ITradeSettlementOrderService;
+import cn.bugstack.domain.trade.service.detector.IHotKeyDetector;
+import cn.bugstack.domain.trade.service.IHotGoodsTradeService;
+import cn.bugstack.domain.trade.service.normal.INormalGoodsTradeService;
 import cn.bugstack.types.enums.ResponseCode;
 import cn.bugstack.types.exception.AppException;
 import com.alibaba.fastjson.JSON;
@@ -24,8 +27,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -45,6 +46,18 @@ public class MarketTradeController implements IMarketTradeService {
     private ITradeSettlementOrderService tradeSettlementOrderService;
     @Resource
     private ITradeRefundOrderService tradeRefundOrderService;
+    
+    // 热点商品探测服务
+    @Resource
+    private IHotKeyDetector hotKeyDetector;
+    
+    // 热点商品下单服务
+    @Resource
+    private IHotGoodsTradeService hotGoodsTradeService;
+    
+    // 普通商品下单服务
+    @Resource
+    private INormalGoodsTradeService normalGoodsTradeService;
 
     /**
      * 拼团营销锁单
@@ -72,6 +85,9 @@ public class MarketTradeController implements IMarketTradeService {
                         .build();
             }
 
+            // ⭐ 根据 hotkey 判断商品类型（提前判断，用于后续逻辑）
+            boolean isHotGoods = hotKeyDetector.isHotGoods(activityId, goodsId);
+
             // 查询 outTradeNo 是否已经存在交易记录
             MarketPayOrderEntity marketPayOrderEntity = tradeOrderService.queryNoPayMarketPayOrderByOutTradeNo(userId, outTradeNo);
             if (null != marketPayOrderEntity && TradeOrderStatusEnumVO.CREATE.equals(marketPayOrderEntity.getTradeOrderStatusEnumVO())) {
@@ -91,8 +107,8 @@ public class MarketTradeController implements IMarketTradeService {
                         .build();
             }
 
-            // 判断拼团锁单是否完成了目标
-            if (StringUtils.isNotBlank(teamId)) {
+            // ⭐ 判断拼团锁单是否完成了目标（仅普通商品需要检查，热点商品不做拼团）
+            if (!isHotGoods && StringUtils.isNotBlank(teamId)) {
                 GroupBuyProgressVO groupBuyProgressVO = tradeOrderService.queryGroupBuyProgress(teamId);
                 if (null != groupBuyProgressVO && Objects.equals(groupBuyProgressVO.getTargetCount(), groupBuyProgressVO.getLockCount())) {
                     log.info("交易锁单拦截-拼单目标已达成:{} {}", userId, teamId);
@@ -122,35 +138,45 @@ public class MarketTradeController implements IMarketTradeService {
 
             GroupBuyActivityDiscountVO groupBuyActivityDiscountVO = trialBalanceEntity.getGroupBuyActivityDiscountVO();
 
-            // 营销优惠锁单
-            marketPayOrderEntity = tradeOrderService.lockMarketPayOrder(
-                    UserEntity.builder().userId(userId).build(),
-                    PayActivityEntity.builder()
-                            .teamId(teamId)
-                            .activityId(activityId)
-                            .activityName(groupBuyActivityDiscountVO.getActivityName())
-                            .startTime(groupBuyActivityDiscountVO.getStartTime())
-                            .endTime(groupBuyActivityDiscountVO.getEndTime())
-                            .validTime(groupBuyActivityDiscountVO.getValidTime())
-                            .targetCount(groupBuyActivityDiscountVO.getTarget())
-                            .build(),
-                    PayDiscountEntity.builder()
-                            .source(source)
-                            .channel(channel)
-                            .goodsId(goodsId)
-                            .goodsName(trialBalanceEntity.getGoodsName())
-                            .originalPrice(trialBalanceEntity.getOriginalPrice())
-                            .deductionPrice(trialBalanceEntity.getDeductionPrice())
-                            .payPrice(trialBalanceEntity.getPayPrice())
-                            .outTradeNo(outTradeNo)
-                            .notifyConfigVO(
-                                    // 构建回调通知对象
-                                    NotifyConfigVO.builder()
-                                            .notifyType(NotifyTypeEnumVO.valueOf(notifyConfigVO.getNotifyType()))
-                                            .notifyMQ(notifyConfigVO.getNotifyMQ())
-                                            .notifyUrl(notifyConfigVO.getNotifyUrl())
-                                            .build())
-                            .build());
+            // 构建实体对象
+            UserEntity userEntity = UserEntity.builder().userId(userId).build();
+            PayActivityEntity payActivityEntity = PayActivityEntity.builder()
+                    .teamId(teamId)
+                    .activityId(activityId)
+                    .activityName(groupBuyActivityDiscountVO.getActivityName())
+                    .startTime(groupBuyActivityDiscountVO.getStartTime())
+                    .endTime(groupBuyActivityDiscountVO.getEndTime())
+                    .validTime(groupBuyActivityDiscountVO.getValidTime())
+                    .targetCount(groupBuyActivityDiscountVO.getTarget())
+                    .build();
+            PayDiscountEntity payDiscountEntity = PayDiscountEntity.builder()
+                    .source(source)
+                    .channel(channel)
+                    .goodsId(goodsId)
+                    .goodsName(trialBalanceEntity.getGoodsName())
+                    .originalPrice(trialBalanceEntity.getOriginalPrice())
+                    .deductionPrice(trialBalanceEntity.getDeductionPrice())
+                    .payPrice(trialBalanceEntity.getPayPrice())
+                    .outTradeNo(outTradeNo)
+                    .notifyConfigVO(
+                            // 构建回调通知对象
+                            NotifyConfigVO.builder()
+                                    .notifyType(NotifyTypeEnumVO.valueOf(notifyConfigVO.getNotifyType()))
+                                    .notifyMQ(notifyConfigVO.getNotifyMQ())
+                                    .notifyUrl(notifyConfigVO.getNotifyUrl())
+                                    .build())
+                    .build();
+
+            // ⭐ 根据 hotkey 判断走哪个接口（isHotGoods 已在前面定义）
+            if (isHotGoods) {
+                // 热点商品：走热点商品下单服务（不做拼团）
+                log.info("热点商品下单: userId={}, activityId={}, goodsId={}", userId, activityId, goodsId);
+                marketPayOrderEntity = hotGoodsTradeService.lockHotGoodsOrder(userEntity, payActivityEntity, payDiscountEntity);
+            } else {
+                // 普通商品：走普通商品下单服务（保留拼团）
+                log.info("普通商品下单: userId={}, activityId={}, goodsId={}, teamId={}", userId, activityId, goodsId, teamId);
+                marketPayOrderEntity = normalGoodsTradeService.lockNormalGoodsOrder(userEntity, payActivityEntity, payDiscountEntity);
+            }
 
             log.info("交易锁单记录(新):{} marketPayOrderEntity:{}", userId, JSON.toJSONString(marketPayOrderEntity));
 

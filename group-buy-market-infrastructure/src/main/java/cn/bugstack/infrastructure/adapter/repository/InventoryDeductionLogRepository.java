@@ -8,6 +8,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Repository;
 
 import javax.annotation.Resource;
+import java.util.Date;
+import java.util.List;
 
 /**
  * 库存扣减流水仓储实现（Infrastructure层）
@@ -29,6 +31,23 @@ public class InventoryDeductionLogRepository implements IInventoryDeductionLogRe
         InventoryDeductionLogEntity entity = new InventoryDeductionLogEntity();
         BeanUtils.copyProperties(po, entity);
         return entity;
+    }
+
+    /**
+     * 查询指定日期之前的流水（用于归档）
+     * @param archiveDate 归档日期
+     * @return 需要归档的流水列表
+     */
+    public List<InventoryDeductionLog> queryLogsBeforeDate(Date archiveDate) {
+        return inventoryDeductionLogDao.queryLogsBeforeDate(archiveDate);
+    }
+
+    /**
+     * 根据ID删除流水
+     * @param id 流水ID
+     */
+    public void deleteById(Long id) {
+        inventoryDeductionLogDao.deleteById(id);
     }
 }
 

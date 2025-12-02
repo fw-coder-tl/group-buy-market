@@ -2,6 +2,8 @@ package cn.bugstack.domain.trade.adapter.repository;
 
 import cn.bugstack.domain.activity.model.entity.UserGroupBuyOrderDetailEntity;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyOrderAggregate;
+import cn.bugstack.domain.trade.model.aggregate.HotGoodsOrderAggregate;
+import cn.bugstack.domain.trade.model.aggregate.NormalGoodsOrderAggregate;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyRefundAggregate;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyTeamSettlementAggregate;
 import cn.bugstack.domain.trade.model.entity.GroupBuyActivityEntity;
@@ -30,6 +32,43 @@ public interface ITradeRepository {
     MarketPayOrderEntity queryMarketPayOrderEntityByOrderId(String userId, String orderId);
 
     MarketPayOrderEntity lockMarketPayOrder(GroupBuyOrderAggregate groupBuyOrderAggregate);
+
+    /**
+     * 锁定热点商品订单（不做拼团）
+     * 
+     * @param hotGoodsOrderAggregate 热点商品订单聚合对象
+     * @return 订单实体
+     */
+    MarketPayOrderEntity lockHotGoodsOrder(HotGoodsOrderAggregate hotGoodsOrderAggregate);
+
+    /**
+     * 锁定普通商品订单（带拼团）
+     * 
+     * @param normalGoodsOrderAggregate 普通商品订单聚合对象
+     * @return 订单实体
+     */
+    MarketPayOrderEntity lockNormalGoodsOrder(NormalGoodsOrderAggregate normalGoodsOrderAggregate);
+
+    /**
+     * TCC Try：尝试创建订单（创建订单但状态是 TRY）
+     * @param normalGoodsOrderAggregate 普通商品订单聚合对象
+     * @return 订单实体
+     */
+    MarketPayOrderEntity tryOrder(NormalGoodsOrderAggregate normalGoodsOrderAggregate);
+
+    /**
+     * TCC Confirm：确认订单（将订单状态从 TRY 改为 CONFIRM）
+     * @param orderId 订单ID
+     * @return 是否成功
+     */
+    boolean confirmOrder(String orderId);
+
+    /**
+     * TCC Cancel：取消订单（将订单状态改为 CANCEL）
+     * @param orderId 订单ID
+     * @return 是否成功
+     */
+    boolean cancelOrder(String orderId);
 
     GroupBuyProgressVO queryGroupBuyProgress(String teamId);
 

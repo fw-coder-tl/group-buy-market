@@ -40,8 +40,38 @@ public class MessageProducerImpl implements IMessageProducer {
     
     @Override
     public boolean sendDelayMessage(String topic, String tag, String message, int delayLevel) {
-        // 暂未使用延迟消息
-        log.warn("暂不支持RocketMQ延迟消息发送, topic={}, tag={}, delayLevel={}", topic, tag, delayLevel);
-        return false;
+        try {
+            Message<String> rocketMessage = MessageBuilder.withPayload(message)
+                    .setHeader(RocketMQHeaders.TAGS, tag)
+                    .setHeader("delayLevel", delayLevel) // RocketMQ 延迟消息通过 header 设置
+                    .build();
+            // RocketMQ 延迟消息：delayLevel 1-18 对应 1s, 5s, 10s, 30s, 1m, 2m, 3m, 4m, 5m, 6m, 7m, 8m, 9m, 10m, 20m, 30m, 1h, 2h
+            org.apache.rocketmq.client.producer.SendResult result = rocketMQTemplate.syncSend(
+                    topic + ":" + tag, 
+                    rocketMessage
+            );
+            boolean success = result != null && result.getSendStatus() == SendStatus.SEND_OK;
+            log.info("发送RocketMQ延迟消息: topic={}, tag={}, delayLevel={}, result={}", topic, tag, delayLevel, success);
+            return success;
+        } catch (Exception e) {
+            log.error("发送RocketMQ延迟消息失败: topic={}, tag={}, delayLevel={}", topic, tag, delayLevel, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean sendMessage(String topic, String tag, String message) {
+        try {
+            Message<String> rocketMessage = MessageBuilder.withPayload(message)
+                    .setHeader(RocketMQHeaders.TAGS, tag)
+                    .build();
+            org.apache.rocketmq.client.producer.SendResult result = rocketMQTemplate.syncSend(topic + ":" + tag, rocketMessage);
+            boolean success = result != null && result.getSendStatus() == SendStatus.SEND_OK;
+            log.info("发送RocketMQ普通消息: topic={}, tag={}, result={}", topic, tag, success);
+            return success;
+        } catch (Exception e) {
+            log.error("发送RocketMQ普通消息失败: topic={}, tag={}", topic, tag, e);
+            return false;
+        }
     }
 }

@@ -1,0 +1,60 @@
+# XXL-Job Docker Compose 配置（复用现有 MySQL 版本）
+# 适用于：已有 MySQL 数据库，复用现有数据库的场景
+# 启动命令: docker-compose -f docker-compose-xxl-job-reuse-mysql.yml up -d
+# 停止命令: docker-compose -f docker-compose-xxl-job-reuse-mysql.yml down
+# 查看日志: docker-compose -f docker-compose-xxl-job-reuse-mysql.yml logs -f
+# 
+# 访问地址: http://localhost:8080/xxl-job-admin/
+# 默认账号: admin / 123456
+# 
+# 使用前准备：
+# 1. 在现有 MySQL 中创建数据库: CREATE DATABASE xxl_job DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# 2. 执行初始化 SQL（从 XXL-Job 官方下载: https://github.com/xuxueli/xxl-job/blob/master/doc/db/tables_xxl_job.sql）
+# 3. 修改下面的数据库连接配置（host、port、username、password）
+
+version: '3.9'
+
+services:
+  # XXL-Job Admin - 管理平台
+  xxl-job-admin:
+    image: xuxueli/xxl-job-admin:2.4.0
+    container_name: xxl-job-admin
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      # ⚠️ 修改为你的 MySQL 连接配置
+      # 如果 MySQL 在 Docker 中，使用容器名: mysql:3306
+      # 如果 MySQL 在宿主机，使用: host.docker.internal:13306 或 宿主机IP:13306
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai&nullCatalogMeansCurrent=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      # 登录账号配置（可选，默认 admin/123456）
+      XXL_JOB_LOGIN_USERNAME: admin
+      XXL_JOB_LOGIN_PASSWORD: 123456
+      # 访问令牌（与应用的 access-token 保持一致）
+      XXL_JOB_ACCESS_TOKEN: default_token
+    volumes:
+      - ./xxl-job/admin/logs:/data/applogs/xxl-job
+    networks:
+      - my-network  # ⚠️ 使用现有网络，确保能访问 MySQL
+    # 添加宿主机IP映射，让容器可以访问宿主机
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Docker Desktop支持，自动映射到宿主机
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/xxl-job-admin/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  my-network:
+    # 方案1：如果 docker-compose-environment.yml 已启动，使用其创建的网络
+    # 网络名称格式：{项目名}_my-network，项目名通常是目录名或 -p 参数指定的名称
+    # 如果网络不存在，先执行：docker network create dev-ops_my-network
+    name: dev-ops_my-network
+    external: true
+

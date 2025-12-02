@@ -18,7 +18,7 @@ import javax.annotation.Resource;
  * @author liang.tian
  */
 @Slf4j
-//@Service
+@Service
 public class TeamStockOccupyRuleFilter implements ILogicHandler<TradeLockRuleCommandEntity, TradeLockRuleFilterFactory.DynamicContext, TradeLockRuleFilterBackEntity> {
 
     @Resource

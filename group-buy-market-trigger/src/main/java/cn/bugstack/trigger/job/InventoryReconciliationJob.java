@@ -23,7 +23,12 @@ import java.util.concurrent.TimeUnit;
  * 1. 扫描 Redis 库存扣减流水
  * 2. 根据 orderId（幂等号）查询数据库流水
  * 3. 对比 Redis 和数据库的扣减数量是否一致
- * 4. 处理不一致的情况（告警或补偿）
+ * 4. 处理不一致的情况（告警，不删除 Redis 流水）
+ * 
+ * ⭐ 参考 NFTurbo 设计：
+ * - 只有数据一致时才删除 Redis 流水
+ * - 不一致时只告警，不删除 Redis 流水，等待补偿任务或人工处理
+ * - 不处理"数据库有流水但 Redis 没有"的情况（需要反向扫描，暂未实现）
  * 
  * 执行频率：在 XXL-Job 管理平台配置（建议每分钟执行一次）
  * 时间阈值：只处理3秒之前的数据，避免和旁路验证冲突
@@ -154,9 +159,10 @@ public class InventoryReconciliationJob {
             
             if (dbLog == null) {
                 // 情况1：Redis 有流水，数据库无流水
-                log.warn("对账不一致-数据库流水缺失: orderId={}, redisChange={}, identifier={}",
-                        orderId, redisLog.getChangeAsInteger(), identifier);
-                // TODO: 可以在这里触发告警或补偿逻辑
+                // ⭐ 参考 NFTurbo：不一致时不删除 Redis 流水，只告警，等待补偿任务处理
+                log.error("对账不一致-数据库流水缺失: orderId={}, redisChange={}, identifier={}, logKey={}",
+                        orderId, redisLog.getChangeAsInteger(), identifier, logKey);
+                // 不删除 Redis 流水，等待补偿任务处理（回滚库存或检查订单状态）
                 return ReconciliationResult.MISSING_DB;
             }
             
@@ -181,9 +187,10 @@ public class InventoryReconciliationJob {
                 // 1. 代码bug：Redis扣减和数据库扣减的数量不一致
                 // 2. 数据被手动修改：数据库或Redis的数据被手动修改
                 // 3. 未来支持批量扣减：如果未来支持批量扣减，可能出现不一致
-                log.error("对账不一致-扣减数量不匹配（异常情况）: orderId={}, redisChange={}, dbQuantity={}, identifier={}",
-                        orderId, redisChange, dbQuantity, identifier);
-                // TODO: 可以在这里触发告警或补偿逻辑
+                // ⭐ 参考 NFTurbo：不一致时不删除 Redis 流水，只告警，需要人工介入
+                log.error("对账不一致-扣减数量不匹配（异常情况）: orderId={}, redisChange={}, dbQuantity={}, identifier={}, logKey={}",
+                        orderId, redisChange, dbQuantity, identifier, logKey);
+                // 不删除 Redis 流水，需要人工介入处理
                 return ReconciliationResult.INCONSISTENT;
             }
             
@@ -201,11 +208,12 @@ public class InventoryReconciliationJob {
             
             if (!frozenChange.equals(dbQuantity)) {
                 // 情况3：冻结库存变化量与扣减数量不一致
+                // ⭐ 参考 NFTurbo：不一致时不删除 Redis 流水，只告警，需要人工介入
                 log.error("对账不一致-冻结库存变化不匹配: orderId={}, quantity={}, frozenChange={}, " +
-                                "beforeFrozen={}, afterFrozen={}, identifier={}",
+                                "beforeFrozen={}, afterFrozen={}, identifier={}, logKey={}",
                         orderId, dbQuantity, frozenChange,
-                        dbLog.getBeforeFrozen(), dbLog.getAfterFrozen(), identifier);
-                // TODO: 可以在这里触发告警或补偿逻辑
+                        dbLog.getBeforeFrozen(), dbLog.getAfterFrozen(), identifier, logKey);
+                // 不删除 Redis 流水，需要人工介入处理
                 return ReconciliationResult.INCONSISTENT;
             }
             

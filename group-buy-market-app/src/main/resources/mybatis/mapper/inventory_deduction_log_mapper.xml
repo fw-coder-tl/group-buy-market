@@ -46,5 +46,18 @@
         WHERE create_time BETWEEN #{startTime} AND #{endTime}
     </select>
 
+    <select id="queryLogsBeforeDate" parameterType="java.util.Date" resultMap="dataMap">
+        SELECT id, order_id, user_id, activity_id, goods_id, quantity,
+               before_saleable, after_saleable, before_frozen, after_frozen,
+               lock_version, status, create_time
+        FROM inventory_deduction_log
+        WHERE create_time &lt; #{archiveDate}
+        ORDER BY id
+    </select>
+
+    <delete id="deleteById" parameterType="java.lang.Long">
+        DELETE FROM inventory_deduction_log WHERE id = #{id}
+    </delete>
+
 </mapper>
 

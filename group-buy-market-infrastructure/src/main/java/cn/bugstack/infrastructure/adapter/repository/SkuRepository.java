@@ -1,5 +1,6 @@
 package cn.bugstack.infrastructure.adapter.repository;
 
+import cn.bugstack.domain.trade.adapter.port.IRedisAdapter;
 import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.infrastructure.dao.IInventoryDeductionLogDao;
 import cn.bugstack.infrastructure.dao.ISkuActivityDao;
@@ -21,6 +22,13 @@ public class SkuRepository implements ISkuRepository {
 
     @Resource
     private IInventoryDeductionLogDao inventoryDeductionLogDao;
+
+    @Resource
+    private IRedisAdapter redisAdapter;
+
+    // 商品库存 Redis 前缀
+    private static final String GOODS_STOCK_KEY_PREFIX = "group_buy_market_goods_stock_";
+    private static final String GOODS_STOCK_LOG_KEY_PREFIX = "group_buy_market_goods_stock_log_";
 
     private static final int MAX_RETRY = 3;
 
@@ -119,5 +127,125 @@ public class SkuRepository implements ISkuRepository {
     @Override
     public boolean releaseSkuStock(Long activityId, String goodsId, Integer quantity) {
         return skuActivityDao.releaseSkuStock(activityId, goodsId, quantity) > 0;
+    }
+
+    /**
+     * TCC Try：尝试扣减库存（Redis 预扣减，不扣减数据库）
+     * 
+     * 对标 NFTurbo 的 tryDecreaseInventory
+     * 
+     * 实现：
+     * 1. 在 Redis 中预扣减库存
+     * 2. 记录 Redis 流水
+     * 3. 不扣减数据库库存
+     */
+    @Override
+    public boolean tryDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId, String userId) {
+        try {
+            // 1. 构建 Redis Key
+            String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
+            String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
+            String identifier = "TRY_" + userId + "_" + orderId;
+
+            // 2. 在 Redis 中预扣减库存（记录流水）
+            Long result = redisAdapter.decreaseStockWithLog(goodsStockKey, goodsStockLogKey, identifier, quantity);
+            
+            if (result == null || result < 0) {
+                log.warn("TCC Try-Redis预扣减库存失败: orderId={}, activityId={}, goodsId={}, result={}", 
+                        orderId, activityId, goodsId, result);
+                return false;
+            }
+
+            log.info("TCC Try-Redis预扣减库存成功: orderId={}, activityId={}, goodsId={}, quantity={}, 剩余库存={}", 
+                    orderId, activityId, goodsId, quantity, result);
+            return true;
+        } catch (Exception e) {
+            log.error("TCC Try-Redis预扣减库存异常: orderId={}, activityId={}, goodsId={}", 
+                    orderId, activityId, goodsId, e);
+            return false;
+        }
+    }
+
+    /**
+     * TCC Confirm：确认扣减库存（真正扣减数据库库存）
+     * 
+     * 对标 NFTurbo 的 confirmDecreaseInventory
+     * 
+     * 实现：
+     * 1. 扣减数据库可售库存
+     * 2. 减少冻结库存
+     * 3. 更新流水状态为 CONFIRM
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean confirmDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId) {
+        // 1. 查询流水
+        InventoryDeductionLog logEntry = inventoryDeductionLogDao.queryByOrderId(orderId);
+        if (logEntry == null) {
+            log.warn("TCC Confirm-未找到库存扣减流水: orderId={}", orderId);
+            return false;
+        }
+
+        // 2. 检查是否已确认
+        if ("CONFIRM".equals(logEntry.getStatus())) {
+            log.info("TCC Confirm-库存已确认（幂等）: orderId={}", orderId);
+            return true;
+        }
+
+        // 3. 确认扣减库存（真正扣减可售库存，减少冻结库存）
+        int updateCount = skuActivityDao.confirmSkuStock(activityId, goodsId, quantity);
+        if (updateCount <= 0) {
+            log.error("TCC Confirm-确认扣减库存失败: orderId={}, activityId={}, goodsId={}", 
+                    orderId, activityId, goodsId);
+            return false;
+        }
+
+        // 4. 更新流水状态为 CONFIRM
+        inventoryDeductionLogDao.updateStatus(orderId, "CONFIRM");
+
+        log.info("TCC Confirm-确认扣减库存成功: orderId={}, activityId={}, goodsId={}, quantity={}", 
+                orderId, activityId, goodsId, quantity);
+        return true;
+    }
+
+    /**
+     * TCC Cancel：取消扣减库存（回滚 Redis 库存）
+     * 
+     * 对标 NFTurbo 的 cancelDecreaseInventory
+     * 
+     * 实现：
+     * 1. 回滚 Redis 库存
+     * 2. 删除 Redis 流水
+     * 3. 释放数据库冻结库存
+     */
+    @Override
+    public boolean cancelDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId) {
+        // 1. 释放数据库冻结库存
+        int updateCount = skuActivityDao.releaseSkuStock(activityId, goodsId, quantity);
+        if (updateCount <= 0) {
+            log.warn("TCC Cancel-释放冻结库存失败: orderId={}, activityId={}, goodsId={}", 
+                    orderId, activityId, goodsId);
+        }
+
+        // 2. 更新流水状态为 CANCEL
+        inventoryDeductionLogDao.updateStatus(orderId, "CANCEL");
+
+        // 3. 回滚 Redis 库存
+        try {
+            String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
+            String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
+            String identifier = "CANCEL_" + orderId;
+            
+            Long rollbackResult = redisAdapter.increaseStockWithLog(goodsStockKey, goodsStockLogKey, identifier, quantity);
+            log.info("TCC Cancel-Redis库存回滚成功: orderId={}, activityId={}, goodsId={}, quantity={}, 回滚后库存={}", 
+                    orderId, activityId, goodsId, quantity, rollbackResult);
+        } catch (Exception e) {
+            log.error("TCC Cancel-Redis库存回滚失败: orderId={}, activityId={}, goodsId={}", 
+                    orderId, activityId, goodsId, e);
+        }
+
+        log.info("TCC Cancel-取消扣减库存成功: orderId={}, activityId={}, goodsId={}, quantity={}", 
+                orderId, activityId, goodsId, quantity);
+        return true;
     }
 }

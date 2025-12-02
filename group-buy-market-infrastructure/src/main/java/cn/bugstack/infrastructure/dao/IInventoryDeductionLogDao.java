@@ -25,4 +25,21 @@ public interface IInventoryDeductionLogDao {
      */
     List<InventoryDeductionLog> queryByTimeRange(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 
+    /**
+     * 查询指定日期之前的流水（用于归档）
+     */
+    List<InventoryDeductionLog> queryLogsBeforeDate(@Param("archiveDate") java.util.Date archiveDate);
+
+    /**
+     * 根据ID删除流水
+     */
+    void deleteById(@Param("id") Long id);
+
+    /**
+     * 更新流水状态
+     * @param orderId 订单ID
+     * @param status 状态（TRY、CONFIRM、CANCEL）
+     */
+    void updateStatus(@Param("orderId") String orderId, @Param("status") String status);
+
 }

@@ -4,6 +4,8 @@ import cn.bugstack.domain.activity.model.entity.UserGroupBuyOrderDetailEntity;
 import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyOrderAggregate;
+import cn.bugstack.domain.trade.model.aggregate.HotGoodsOrderAggregate;
+import cn.bugstack.domain.trade.model.aggregate.NormalGoodsOrderAggregate;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyRefundAggregate;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyTeamSettlementAggregate;
 import cn.bugstack.domain.trade.model.entity.*;
@@ -95,7 +97,15 @@ public class TradeRepository implements ITradeRepository {
         GroupBuyOrderList groupBuyOrderListReq = new GroupBuyOrderList();
         groupBuyOrderListReq.setUserId(userId);
         groupBuyOrderListReq.setOrderId(orderId);
+        
+        // 1. 先查热数据表
         GroupBuyOrderList groupBuyOrderListRes = groupBuyOrderListDao.queryGroupBuyOrderRecordByOrderId(groupBuyOrderListReq);
+        
+        // 2. 如果热数据表不存在，再查归档表（冷热分离）
+        if (null == groupBuyOrderListRes) {
+            groupBuyOrderListRes = groupBuyOrderListDao.queryGroupBuyOrderRecordByOrderIdFromArchive(groupBuyOrderListReq);
+        }
+        
         if (null == groupBuyOrderListRes) return null;
 
         return MarketPayOrderEntity.builder()
@@ -193,6 +203,295 @@ public class TradeRepository implements ITradeRepository {
                 .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.CREATE)
                 .teamId(teamId)
                 .build();
+    }
+
+    /**
+     * 锁定热点商品订单（不做拼团）
+     * 
+     * 对标 NFTurbo 的 newBuyPlus 方式
+     * 
+     * 特点：
+     * 1. 不创建队伍（GroupBuyOrder）
+     * 2. 不更新队伍锁单数量
+     * 3. 只创建订单（GroupBuyOrderList）
+     * 4. 生成虚拟 teamId（用于兼容现有数据结构）
+     */
+    @Override
+    public MarketPayOrderEntity lockHotGoodsOrder(HotGoodsOrderAggregate hotGoodsOrderAggregate) {
+        // 聚合对象信息
+        UserEntity userEntity = hotGoodsOrderAggregate.getUserEntity();
+        PayActivityEntity payActivityEntity = hotGoodsOrderAggregate.getPayActivityEntity();
+        PayDiscountEntity payDiscountEntity = hotGoodsOrderAggregate.getPayDiscountEntity();
+        Integer userTakeOrderCount = hotGoodsOrderAggregate.getUserTakeOrderCount();
+
+        // ⭐ 热点商品不做拼团，生成虚拟 teamId（用于兼容现有数据结构）
+        String teamId = "HOT_GOODS_" + RandomStringUtils.randomNumeric(8);
+
+        // 日期处理
+        Date currentDate = new Date();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(currentDate);
+        calendar.add(Calendar.MINUTE, payActivityEntity.getValidTime());
+
+        String orderId = hotGoodsOrderAggregate.getOrderId();
+        GroupBuyOrderList groupBuyOrderListReq = GroupBuyOrderList.builder()
+                .userId(userEntity.getUserId())
+                .teamId(teamId) // 虚拟 teamId
+                .orderId(orderId)
+                .activityId(payActivityEntity.getActivityId())
+                .startTime(currentDate)
+                .endTime(calendar.getTime())
+                .goodsId(payDiscountEntity.getGoodsId())
+                .source(payDiscountEntity.getSource())
+                .channel(payDiscountEntity.getChannel())
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .status(TradeOrderStatusEnumVO.CREATE.getCode())
+                .outTradeNo(payDiscountEntity.getOutTradeNo())
+                // 构建 bizId 唯一值；活动id_用户id_参与次数累加
+                .bizId(payActivityEntity.getActivityId() + Constants.UNDERLINE + userEntity.getUserId() + Constants.UNDERLINE + (userTakeOrderCount + 1))
+                .build();
+        try {
+            // 写入订单记录（不创建队伍）
+            groupBuyOrderListDao.insert(groupBuyOrderListReq);
+        } catch (DuplicateKeyException e) {
+            throw new AppException(ResponseCode.INDEX_EXCEPTION);
+        }
+
+        return MarketPayOrderEntity.builder()
+                .orderId(orderId)
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.CREATE)
+                .teamId(teamId) // 虚拟 teamId
+                .build();
+    }
+
+    /**
+     * 锁定普通商品订单（带拼团）
+     * 
+     * 对标 NFTurbo 的 normalBuy 方式（但使用 RocketMQ 事务消息）
+     * 
+     * 特点：
+     * 1. 创建队伍（如果需要，即 teamId 为空）
+     * 2. 更新队伍锁单数量（如果 teamId 不为空）
+     * 3. 创建订单
+     * 4. 支持拼团玩法
+     */
+    @Override
+    public MarketPayOrderEntity lockNormalGoodsOrder(NormalGoodsOrderAggregate normalGoodsOrderAggregate) {
+        // 聚合对象信息
+        UserEntity userEntity = normalGoodsOrderAggregate.getUserEntity();
+        PayActivityEntity payActivityEntity = normalGoodsOrderAggregate.getPayActivityEntity();
+        PayDiscountEntity payDiscountEntity = normalGoodsOrderAggregate.getPayDiscountEntity();
+        NotifyConfigVO notifyConfigVO = payDiscountEntity.getNotifyConfigVO();
+        Integer userTakeOrderCount = normalGoodsOrderAggregate.getUserTakeOrderCount();
+
+        // 判断是否有团 - teamId 为空 - 新团、为不空 - 老团
+        String teamId = normalGoodsOrderAggregate.getTeamId();
+        if (StringUtils.isBlank(teamId)) {
+            // 使用 RandomStringUtils.randomNumeric 替代公司里使用的雪花算法UUID
+            teamId = RandomStringUtils.randomNumeric(8);
+
+            // 构建拼团订单
+            GroupBuyOrder groupBuyOrder = GroupBuyOrder.builder()
+                    .teamId(teamId)
+                    .activityId(payActivityEntity.getActivityId())
+                    .source(payDiscountEntity.getSource())
+                    .channel(payDiscountEntity.getChannel())
+                    .originalPrice(payDiscountEntity.getOriginalPrice())
+                    .deductionPrice(payDiscountEntity.getDeductionPrice())
+                    .payPrice(payDiscountEntity.getPayPrice())
+                    .targetCount(normalGoodsOrderAggregate.getTargetCount() != null ? normalGoodsOrderAggregate.getTargetCount() : payActivityEntity.getTargetCount())
+                    .completeCount(0)
+                    .lockCount(1)
+                    .validStartTime(payActivityEntity.getStartTime())
+                    .validEndTime(payActivityEntity.getEndTime())
+                    .notifyType(notifyConfigVO.getNotifyType().getCode())
+                    .notifyUrl(notifyConfigVO.getNotifyUrl())
+                    .build();
+
+            // 写入记录
+            groupBuyOrderDao.insert(groupBuyOrder);
+        } else {
+            // 更新记录 - 如果更新记录不等于1，则表示拼团已满，抛出异常
+            int updateAddTargetCount = groupBuyOrderDao.updateAddLockCount(teamId);
+            if (1 != updateAddTargetCount) {
+                throw new AppException(ResponseCode.E0005);
+            }
+        }
+
+        // 日期处理
+        Date currentDate = new Date();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(currentDate);
+        calendar.add(Calendar.MINUTE, payActivityEntity.getValidTime());
+
+        String orderId = normalGoodsOrderAggregate.getOrderId();
+        GroupBuyOrderList groupBuyOrderListReq = GroupBuyOrderList.builder()
+                .userId(userEntity.getUserId())
+                .teamId(teamId)
+                .orderId(orderId)
+                .activityId(payActivityEntity.getActivityId())
+                .startTime(currentDate)
+                .endTime(calendar.getTime())
+                .goodsId(payDiscountEntity.getGoodsId())
+                .source(payDiscountEntity.getSource())
+                .channel(payDiscountEntity.getChannel())
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .status(TradeOrderStatusEnumVO.CREATE.getCode())
+                .outTradeNo(payDiscountEntity.getOutTradeNo())
+                // 构建 bizId 唯一值；活动id_用户id_参与次数累加
+                .bizId(payActivityEntity.getActivityId() + Constants.UNDERLINE + userEntity.getUserId() + Constants.UNDERLINE + (userTakeOrderCount + 1))
+                .build();
+        try {
+            // 写入订单记录
+            groupBuyOrderListDao.insert(groupBuyOrderListReq);
+        } catch (DuplicateKeyException e) {
+            throw new AppException(ResponseCode.INDEX_EXCEPTION);
+        }
+
+        return MarketPayOrderEntity.builder()
+                .orderId(orderId)
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.CREATE)
+                .teamId(teamId)
+                .build();
+    }
+
+    /**
+     * TCC Try：尝试创建订单（创建订单但状态是 TRY）
+     * 
+     * 对标 NFTurbo 的 tryOrder
+     * 
+     * 实现：
+     * 1. 创建订单，状态为 TRY
+     * 2. 创建队伍（如果需要）
+     * 3. 更新队伍锁单数量（如果需要）
+     */
+    @Override
+    public MarketPayOrderEntity tryOrder(NormalGoodsOrderAggregate normalGoodsOrderAggregate) {
+        // 聚合对象信息
+        UserEntity userEntity = normalGoodsOrderAggregate.getUserEntity();
+        PayActivityEntity payActivityEntity = normalGoodsOrderAggregate.getPayActivityEntity();
+        PayDiscountEntity payDiscountEntity = normalGoodsOrderAggregate.getPayDiscountEntity();
+        NotifyConfigVO notifyConfigVO = payDiscountEntity.getNotifyConfigVO();
+        Integer userTakeOrderCount = normalGoodsOrderAggregate.getUserTakeOrderCount();
+
+        // 判断是否有团 - teamId 为空 - 新团、为不空 - 老团
+        String teamId = normalGoodsOrderAggregate.getTeamId();
+        if (StringUtils.isBlank(teamId)) {
+            // 使用 RandomStringUtils.randomNumeric 替代公司里使用的雪花算法UUID
+            teamId = RandomStringUtils.randomNumeric(8);
+
+            // 构建拼团订单
+            GroupBuyOrder groupBuyOrder = GroupBuyOrder.builder()
+                    .teamId(teamId)
+                    .activityId(payActivityEntity.getActivityId())
+                    .source(payDiscountEntity.getSource())
+                    .channel(payDiscountEntity.getChannel())
+                    .originalPrice(payDiscountEntity.getOriginalPrice())
+                    .deductionPrice(payDiscountEntity.getDeductionPrice())
+                    .payPrice(payDiscountEntity.getPayPrice())
+                    .targetCount(normalGoodsOrderAggregate.getTargetCount() != null ? normalGoodsOrderAggregate.getTargetCount() : payActivityEntity.getTargetCount())
+                    .completeCount(0)
+                    .lockCount(1)
+                    .validStartTime(payActivityEntity.getStartTime())
+                    .validEndTime(payActivityEntity.getEndTime())
+                    .notifyType(notifyConfigVO.getNotifyType().getCode())
+                    .notifyUrl(notifyConfigVO.getNotifyUrl())
+                    .build();
+
+            // 写入记录
+            groupBuyOrderDao.insert(groupBuyOrder);
+        } else {
+            // 更新记录 - 如果更新记录不等于1，则表示拼团已满，抛出异常
+            int updateAddTargetCount = groupBuyOrderDao.updateAddLockCount(teamId);
+            if (1 != updateAddTargetCount) {
+                throw new AppException(ResponseCode.E0005);
+            }
+        }
+
+        // 日期处理
+        Date currentDate = new Date();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(currentDate);
+        calendar.add(Calendar.MINUTE, payActivityEntity.getValidTime());
+
+        String orderId = normalGoodsOrderAggregate.getOrderId();
+        GroupBuyOrderList groupBuyOrderListReq = GroupBuyOrderList.builder()
+                .userId(userEntity.getUserId())
+                .teamId(teamId)
+                .orderId(orderId)
+                .activityId(payActivityEntity.getActivityId())
+                .startTime(currentDate)
+                .endTime(calendar.getTime())
+                .goodsId(payDiscountEntity.getGoodsId())
+                .source(payDiscountEntity.getSource())
+                .channel(payDiscountEntity.getChannel())
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .status(TradeOrderStatusEnumVO.TRY.getCode()) // ⭐ TCC Try 阶段，状态为 TRY
+                .outTradeNo(payDiscountEntity.getOutTradeNo())
+                // 构建 bizId 唯一值；活动id_用户id_参与次数累加
+                .bizId(payActivityEntity.getActivityId() + Constants.UNDERLINE + userEntity.getUserId() + Constants.UNDERLINE + (userTakeOrderCount + 1))
+                .build();
+        try {
+            // 写入订单记录（状态为 TRY）
+            groupBuyOrderListDao.insert(groupBuyOrderListReq);
+        } catch (DuplicateKeyException e) {
+            throw new AppException(ResponseCode.INDEX_EXCEPTION);
+        }
+
+        return MarketPayOrderEntity.builder()
+                .orderId(orderId)
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.TRY) // ⭐ TCC Try 阶段
+                .teamId(teamId)
+                .build();
+    }
+
+    /**
+     * TCC Confirm：确认订单（将订单状态从 TRY 改为 CONFIRM）
+     * 
+     * 对标 NFTurbo 的 confirmOrder
+     */
+    @Override
+    public boolean confirmOrder(String orderId) {
+        int updateCount = groupBuyOrderListDao.updateOrderStatus(orderId, TradeOrderStatusEnumVO.CONFIRM.getCode());
+        if (updateCount > 0) {
+            log.info("TCC Confirm-确认订单成功: orderId={}", orderId);
+            return true;
+        } else {
+            log.warn("TCC Confirm-确认订单失败（订单不存在或状态不正确）: orderId={}", orderId);
+            return false;
+        }
+    }
+
+    /**
+     * TCC Cancel：取消订单（将订单状态改为 CANCEL）
+     * 
+     * 对标 NFTurbo 的 cancelOrder
+     */
+    @Override
+    public boolean cancelOrder(String orderId) {
+        int updateCount = groupBuyOrderListDao.updateOrderStatus(orderId, TradeOrderStatusEnumVO.CANCEL.getCode());
+        if (updateCount > 0) {
+            log.info("TCC Cancel-取消订单成功: orderId={}", orderId);
+            return true;
+        } else {
+            log.warn("TCC Cancel-取消订单失败（订单不存在或状态不正确）: orderId={}", orderId);
+            return false;
+        }
     }
 
     @Override

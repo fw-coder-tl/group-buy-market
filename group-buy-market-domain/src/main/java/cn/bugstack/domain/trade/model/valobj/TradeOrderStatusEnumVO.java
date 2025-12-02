@@ -15,6 +15,9 @@ public enum TradeOrderStatusEnumVO {
     CREATE(0, "初始创建"),
     COMPLETE(1, "消费完成"),
     CLOSE(2, "用户退单"),
+    TRY(3, "尝试创建"),      // TCC Try 阶段
+    CONFIRM(4, "确认创建"),   // TCC Confirm 阶段
+    CANCEL(5, "取消订单"),    // TCC Cancel 阶段
     ;
 
     private Integer code;
@@ -28,6 +31,12 @@ public enum TradeOrderStatusEnumVO {
                 return COMPLETE;
             case 2:
                 return CLOSE;
+            case 3:
+                return TRY;
+            case 4:
+                return CONFIRM;
+            case 5:
+                return CANCEL;
         }
         return CREATE;
     }

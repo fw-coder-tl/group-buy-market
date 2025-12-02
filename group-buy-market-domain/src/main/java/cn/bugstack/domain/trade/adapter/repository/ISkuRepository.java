@@ -30,4 +30,35 @@ public interface ISkuRepository {
      * @return 是否成功
      */
     boolean releaseSkuStock(Long activityId, String goodsId, Integer quantity);
+
+    /**
+     * TCC Try：尝试扣减库存（Redis 预扣减，不扣减数据库）
+     * @param activityId 活动ID
+     * @param goodsId 商品ID
+     * @param quantity 扣减数量
+     * @param orderId 订单ID（用于幂等性检查）
+     * @param userId 用户ID（用于记录流水）
+     * @return 是否成功
+     */
+    boolean tryDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId, String userId);
+
+    /**
+     * TCC Confirm：确认扣减库存（真正扣减数据库库存）
+     * @param activityId 活动ID
+     * @param goodsId 商品ID
+     * @param quantity 扣减数量
+     * @param orderId 订单ID
+     * @return 是否成功
+     */
+    boolean confirmDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId);
+
+    /**
+     * TCC Cancel：取消扣减库存（回滚 Redis 库存）
+     * @param activityId 活动ID
+     * @param goodsId 商品ID
+     * @param quantity 回滚数量
+     * @param orderId 订单ID
+     * @return 是否成功
+     */
+    boolean cancelDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId);
 }

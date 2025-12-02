@@ -1,0 +1,96 @@
+% !TEX TS-program = xelatex
+% !TEX encoding = UTF-8 Unicode
+% !Mode:: "TeX:UTF-8"
+
+\documentclass{resume}
+\usepackage{zh_CN-Adobefonts_external} % Simplified Chinese Support using external fonts (./fonts/zh_CN-Adobe/)
+%\usepackage{zh_CN-Adobefonts_internal} % Simplified Chinese Support using system fonts
+\usepackage{linespacing_fix} % disable extra space before next section
+\usepackage{cite}
+\geometry{%
+	a4paper,
+	left=0.2in,
+	right=0.2in,
+	top=0.4in,
+	bottom=0.4in,
+	nohead
+} % 减少页边距
+
+\begin{document}
+\pagenumbering{gobble} % suppress displaying page number
+
+\name{田亮}
+
+
+\basicInfo{
+  \email{liang.tian979@gmail.com} \textperiodcentered\ 
+  \phone{(+86) 151-9594-2745} \textperiodcentered\ 
+  \faGithub\ \href{https://github.com/fw-coder-tl}{https://github.com/fw-coder-tl}}
+ 
+\section{\faGraduationCap\  教育背景 }
+\datedsubsection{\textbf{河海大学}\quad 211 双一流 \hfill \textit{软件工程（本科）}}{2023-09 -- 2027-07}
+语言能力: CET-4、CET-6
+
+\section{\faCogs\ 专业技能}
+% increase linespacing [parsep=0.5ex]
+\begin{itemize}[parsep=0.5ex]
+  \item \textbf{操作系统}：熟悉操作系统的相关理论，如内存管理、进程通信等，熟悉Select、Poll、Epoll等模型原理。
+  \item \textbf{计算机网络}：熟悉计算机网络基础知识，如TCP、UDP、HTTPS等协议、TCP连接原理、流量控制、拥塞控制等。
+  \item \textbf{MySQL}：熟悉MySQL使用及原理，如索引、事务、锁、日志等，具有数据库以及SQL调优经验。
+  \item \textbf{Redis}：熟悉Redis核心数据结构、数据持久化、数据过期、内存淘汰等原理，以及深入理解Redis高可用架构。
+  \item \textbf{JVM}：熟悉JVM底层原理，如类加载、垃圾回收算法、JVM垃圾回收器等。
+  \item \textbf{并发编程}：熟悉JUC并发工具的使用和原理，如线程池、锁等，以及深入理解JMM、线程安全知识。
+  \item \textbf{Spring}：熟练使用SpringBoot进行Web后端开发，熟悉部分原理，如IOC、AOP等
+  \item \textbf{消息队列}：熟悉RabbitMQ、RocketMQ消息中间件的使用，在项目中解决过重复消费等问题。
+\end{itemize}
+
+\section{\faUsers\ 实习/项目经历}
+\datedsubsection{\textbf{金仕达软件科技有限公司} }{2025年9月 -- 至今}
+java后端开发
+\begin{itemize}
+  \item 实现了 xxx 特性
+  \item 后台资源占用率减少8\%
+  \item xxx
+\end{itemize}
+
+\section{\faCode\ 项目经历}
+
+\datedsubsection{\textbf{GroupBuy-Market}—基于高并发秒杀拼团交易系统}{2025年5月 -- 2025年10月}
+\textbf{项目描述:}基于DDD架构的拼团秒杀电商平台,支持高并发拼团、秒杀、优惠试算等核心业务。平台面向C端用户提供拼团购买、限时秒杀等营销活动,支持多商品、多活动并发场景。可实现单日最高交易量15W+,峰值QPS 700+。\\
+\textbf{技术栈:} \textit{Spring Boot、MySQL、Redis、RocketMQ、ELK、XxlJob、ShardingSphere}
+\begin{itemize}
+  \item 独立完成用户订单超时数据处理，实现订单数据热冷分离，提升数据库读写性能
+  \item 设计并实现责任链模式+规则引擎架构,通过工厂模式动态组装交易规则、结算规则、退单规则过滤链,支持规则树结构和规则可配置化,提升业务规则处理的灵活性和可维护性
+  \item 使用Redis预扣减+MQ事务消息异步处理+MySQL乐观锁实现库存秒杀QPS100到QPS 700，解决超卖问题。旁路检测+定时任务、Redis和数据库流水+XxlJob对账严格保障数据的一致性
+  \item 利用HotKey热点检测+二级缓存预热，实时识别Top20热门藏品并预热至边缘节点，优化详情页加载速度从1.2s至200ms
+  \item 搭建ELK日志分析平台，同时集成 Prometheus + Grafana 监控体系，实现日志、指标、链路追踪的统一可观测性平台，并且结合Arthas，定位问题效率提升 60 \%以上
+\end{itemize}
+
+\datedsubsection{\textbf{GroupBuy-Market}—基于高并发拼团交易系统}{2025年5月 -- 2024年10月}
+\textbf{项目描述:}基于DDD架构的拼团秒杀电商平台,支持高并发拼团、秒杀、优惠试算等核心业务。平台面向C端用户提供拼团购买、限时秒杀、优惠券使用等营销活动,支持多商品、多活动并发场景。单日最高交易量15W+,峰值QPS 800+。\\
+\textbf{技术栈:} Spring Boot、MySQL、Redis、RocketMQ、ELK、
+\begin{itemize}
+  \item 独立完成用户订单超时数据处理，实现订单数据热冷分离，提升数据库读写性能
+  \item 排查并解决信息同步系统RocketMQ百万级数据消息堆积和消息重复消费问题
+  \item 重写ShardingSphere和SnakeYaml源码解决Seata集成兼容问题；修改Canal源码解决藏品同步异常时间转换问题
+  \item 使用Redis预扣减+MQ异步处理+MySQL乐观锁实现藏品秒杀TPS 700，解决超卖问题
+  \item 参与系统网关模块开发，使用对称和非对称加密算法实现网关数字签名和URL动态加密机制
+  \item 利用HotKey热点检测+二级缓存预热，实时识别Top20热门藏品并预热至边缘节点，优化详情页加载速度从1.2s至200ms
+  \item 独立完成项目支付模块开发，实现多渠道支付对接，解决开发过程中支付幂等性和Seata事务失败问题
+\end{itemize}
+
+
+
+% Reference Test
+%\datedsubsection{\textbf{Paper Title\cite{zaharia2012resilient}}}{May. 2015}
+%An xxx optimized for xxx\cite{verma2015large}
+%\begin{itemize}
+%  \item main contribution
+%\end{itemize}
+
+
+%% Reference
+%\newpage
+%\bibliographystyle{IEEETran}
+%\bibliography{mycite}
+\end{document}

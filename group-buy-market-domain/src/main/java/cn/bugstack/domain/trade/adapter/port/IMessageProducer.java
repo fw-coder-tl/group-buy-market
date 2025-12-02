@@ -20,4 +20,13 @@ public interface IMessageProducer {
      * 发送延迟消息
      */
     boolean sendDelayMessage(String topic, String tag, String message, int delayLevel);
+
+    /**
+     * 发送普通消息（非事务消息）
+     * @param topic 主题
+     * @param tag 标签
+     * @param message 消息体
+     * @return 是否成功
+     */
+    boolean sendMessage(String topic, String tag, String message);
 }
