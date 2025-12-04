@@ -28,7 +28,9 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class HotKeyDetectorImpl implements IHotKeyDetector {
 
+    // 表示热点商品的 Set 集合 Key
     private static final String HOT_GOODS_SET_KEY = "group_buy_market:hot:goods:set";
+    // 热点商品的Key前缀
     private static final String HOT_GOODS_KEY_PREFIX = "group_buy_market:hot:goods:";
 
     @Resource

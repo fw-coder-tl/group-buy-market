@@ -46,10 +46,10 @@
             <groupId>cn.bugstack</groupId>
             <artifactId>group-buy-market-domain</artifactId>
         </dependency>
-        <!-- RocketMQ Spring Boot Starter -->
+        <!-- Spring Cloud Stream RocketMQ -->
         <dependency>
-            <groupId>org.apache.rocketmq</groupId>
-            <artifactId>rocketmq-spring-boot-starter</artifactId>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-rocketmq</artifactId>
         </dependency>
 
         <!-- Maven -->

@@ -6,20 +6,23 @@ import cn.bugstack.domain.trade.model.aggregate.NormalGoodsOrderAggregate;
 import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
 import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import cn.bugstack.domain.trade.service.lock.factory.TradeLockRuleFilterFactory;
-import com.alibaba.fastjson.JSON;
+import cn.bugstack.infrastructure.mq.consumer.AbstractStreamConsumer;
+import cn.bugstack.infrastructure.mq.param.MessageBody;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.context.annotation.Bean;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
+import java.util.function.Consumer;
 
 /**
  * 普通商品订单疑似取消消息监听器（Trigger层）
  * 
- * 对标 NFTurbo 的 NormalBuyMsgListener.normalBuyPreCancel
+ * 参考 NFTurbo 的 NormalBuyMsgListener.normalBuyPreCancel
+ * 使用 Spring Cloud Stream 的 Consumer 方式
  * 
  * 处理 normalBuyPreCancel 消息（延迟消息）：
  * 1. 检查订单状态
@@ -30,8 +33,7 @@ import javax.annotation.Resource;
  */
 @Slf4j
 @Component
-@RocketMQMessageListener(topic = "normalGoodsOrderPreCancel", consumerGroup = "normalGoodsOrderPreCancel-consumer")
-public class NormalGoodsOrderPreCancelListener implements RocketMQListener<String> {
+public class NormalGoodsOrderPreCancelListener extends AbstractStreamConsumer {
 
     @Resource
     private ISkuRepository skuRepository;
@@ -39,34 +41,36 @@ public class NormalGoodsOrderPreCancelListener implements RocketMQListener<Strin
     @Resource
     private ITradeRepository tradeRepository;
 
-    @Override
-    public void onMessage(String message) {
-        try {
-            log.info("普通商品订单疑似取消消息-收到消息: message={}", message);
-            
-            // 1. 解析消息
-            NormalGoodsOrderAggregate aggregate = JSON.parseObject(message, NormalGoodsOrderAggregate.class);
-            String orderId = aggregate.getOrderId();
-            String userId = aggregate.getUserEntity().getUserId();
+    @Bean
+    Consumer<Message<MessageBody>> normalGoodsOrderPreCancel() {
+        return msg -> {
+            try {
+                log.info("普通商品订单疑似取消消息-收到消息");
+                
+                // 1. 解析消息（参考 NFTurbo）
+                NormalGoodsOrderAggregate aggregate = getMessage(msg, NormalGoodsOrderAggregate.class);
+                String orderId = aggregate.getOrderId();
+                String userId = aggregate.getUserEntity().getUserId();
 
-            // 2. 查询订单状态
-            MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
-            
-            // 3. 如果订单已经创建成功（状态为 CONFIRM），则直接返回
-            if (order != null && TradeOrderStatusEnumVO.CONFIRM.equals(order.getTradeOrderStatusEnumVO())) {
-                log.info("普通商品订单疑似取消消息-订单已确认，无需取消: orderId={}, status={}", 
-                        orderId, order.getTradeOrderStatusEnumVO());
-                return;
+                // 2. 查询订单状态
+                MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
+                
+                // 3. 如果订单已经创建成功（状态为 CONFIRM），则直接返回
+                if (order != null && TradeOrderStatusEnumVO.CONFIRM.equals(order.getTradeOrderStatusEnumVO())) {
+                    log.info("普通商品订单疑似取消消息-订单已确认，无需取消: orderId={}, status={}", 
+                            orderId, order.getTradeOrderStatusEnumVO());
+                    return;
+                }
+
+                // 4. 订单未确认，执行取消操作
+                doCancel(aggregate);
+
+                log.info("普通商品订单疑似取消消息-处理成功: orderId={}", orderId);
+            } catch (Exception e) {
+                log.error("普通商品订单疑似取消消息-处理失败", e);
+                throw new RuntimeException("普通商品订单疑似取消消息处理失败", e);
             }
-
-            // 4. 订单未确认，执行取消操作
-            doCancel(aggregate);
-
-            log.info("普通商品订单疑似取消消息-处理成功: orderId={}", orderId);
-        } catch (Exception e) {
-            log.error("普通商品订单疑似取消消息-处理失败: message={}", message, e);
-            throw new RuntimeException("普通商品订单疑似取消消息处理失败", e);
-        }
+        };
     }
 
     /**

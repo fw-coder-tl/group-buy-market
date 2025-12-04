@@ -70,6 +70,79 @@ spring:
           routing_key: topic.team_refund
           # 消费队列
           queue: group_buy_market_queue_2_topic_team_refund
+  # Spring Cloud Stream 配置（参考 NFTurbo）
+  # 注意：function.definition 只需要定义 Consumer（in-0），Producer（out-0）不需要定义
+  cloud:
+    function:
+      definition: orderCreate;hotGoodsOrderCancel;normalGoodsOrderCancel;hotGoodsOrderPreCancel;normalGoodsOrderPreCancel
+    stream:
+      rocketmq:
+        bindings:
+          # 热点商品订单创建事务消息
+          hotGoodsOrderCreate-out-0:
+            producer:
+              producerType: Trans
+              transactionListener: hotGoodsOrderCreateTransactionListener
+          # 普通商品订单创建事务消息
+          normalGoodsOrderCreate-out-0:
+            producer:
+              producerType: Trans
+              transactionListener: normalGoodsOrderCreateTransactionListener
+          # 通用订单创建事务消息（旧拼团订单）
+          orderCreate-out-0:
+            producer:
+              producerType: Trans
+              transactionListener: orderCreateTransactionListener
+      bindings:
+        # 热点商品订单创建（事务消息）
+        hotGoodsOrderCreate-out-0:
+          content-type: application/json
+          destination: hotGoodsOrderCreate-out-0
+          group: hot-goods-group
+          binder: rocketmq
+        # 普通商品订单创建（事务消息）
+        normalGoodsOrderCreate-out-0:
+          content-type: application/json
+          destination: normalGoodsOrderCreate-out-0
+          group: normal-goods-group
+          binder: rocketmq
+        # 通用订单创建（事务消息）
+        orderCreate-out-0:
+          content-type: application/json
+          destination: orderCreate-out-0
+          group: order-create-group
+          binder: rocketmq
+        # 热点商品订单取消（普通消息）
+        hotGoodsOrderCancel-in-0:
+          content-type: application/json
+          destination: hotGoodsOrderCancel
+          group: hot-goods-cancel-group
+          binder: rocketmq
+        # 普通商品订单取消（普通消息）
+        normalGoodsOrderCancel-in-0:
+          content-type: application/json
+          destination: normalGoodsOrderCancel
+          group: normal-goods-cancel-group
+          binder: rocketmq
+        # 热点商品订单疑似取消（延迟消息）
+        hotGoodsOrderPreCancel-in-0:
+          content-type: application/json
+          destination: hotGoodsOrderPreCancel
+          group: hot-goods-pre-cancel-group
+          binder: rocketmq
+        # 普通商品订单疑似取消（延迟消息）
+        normalGoodsOrderPreCancel-in-0:
+          content-type: application/json
+          destination: normalGoodsOrderPreCancel
+          group: normal-goods-pre-cancel-group
+          binder: rocketmq
+        # 订单创建消息（补偿消息）
+        orderCreate-in-0:
+          content-type: application/json
+          destination: orderCreate-out-0
+          group: order-create-consumer-group
+          binder: rocketmq
+# RocketMQ 配置（保留用于兼容性，但主要使用 Spring Cloud Stream 配置）
 rocketmq:
   name-server: 127.0.0.1:9876
   producer:

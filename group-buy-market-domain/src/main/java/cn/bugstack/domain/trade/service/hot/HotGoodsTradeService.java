@@ -1,4 +1,4 @@
-package cn.bugstack.domain.trade.service.lock;
+package cn.bugstack.domain.trade.service.hot;
 
 import cn.bugstack.domain.trade.adapter.port.IMessageProducer;
 import cn.bugstack.domain.trade.adapter.port.IRedisAdapter;
@@ -9,10 +9,7 @@ import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import cn.bugstack.domain.trade.model.vo.RedisStockLogVO;
 import cn.bugstack.domain.trade.service.IHotGoodsTradeService;
-import cn.bugstack.domain.trade.service.lock.HotGoodsTradeRuleFilterFactory;
-import cn.bugstack.domain.trade.service.lock.factory.TradeLockRuleFilterFactory;
 import cn.bugstack.types.utils.SnowflakeIdUtil;
-import cn.bugstack.wrench.design.framework.link.model2.chain.BusinessLinkedList;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,8 +46,8 @@ public class HotGoodsTradeService implements IHotGoodsTradeService {
     @Resource
     private ITradeRepository repository;
 
-    @Resource
-    private BusinessLinkedList<TradeLockRuleCommandEntity, TradeLockRuleFilterFactory.DynamicContext, TradeLockRuleFilterBackEntity> hotGoodsTradeRuleFilter;
+    // 已移除：hotGoodsTradeRuleFilter 不再在此处使用
+    // 交易规则过滤已移至 HotGoodsOrderCreateTransactionListener.executeLocalTransaction 中执行
 
     @Resource
     private IMessageProducer messageProducer;
@@ -69,34 +66,25 @@ public class HotGoodsTradeService implements IHotGoodsTradeService {
         log.info("热点商品下单-锁定订单: userId={}, activityId={}, goodsId={}", 
                 userEntity.getUserId(), payActivityEntity.getActivityId(), payDiscountEntity.getGoodsId());
 
-        // 1. 交易规则过滤（不做拼团相关过滤）
-        TradeLockRuleFilterBackEntity tradeLockRuleFilterBackEntity = hotGoodsTradeRuleFilter.apply(
-                TradeLockRuleCommandEntity.builder()
-                        .activityId(payActivityEntity.getActivityId())
-                        .userId(userEntity.getUserId())
-                        .teamId(null) // 热点商品不做拼团，teamId 为 null
-                        .goodsId(payDiscountEntity.getGoodsId())
-                        .build(),
-                new TradeLockRuleFilterFactory.DynamicContext()
-        );
-
-        // 已参与拼团量 - 用于构建数据库唯一索引使用，确保用户只能在一个活动上参与固定的次数
-        Integer userTakeOrderCount = tradeLockRuleFilterBackEntity.getUserTakeOrderCount();
+        // ⚠️ 优化：移除发送消息前的交易规则过滤，减少数据库查询压力
+        // 交易规则过滤（活动有效性、用户参与次数等）将在消息监听器的本地事务中执行
+        // 这样可以先通过 Redis 和 MQ 进行流量拦截，减少数据库连接数和 CPU 压力
 
         // 生成订单号（雪花算法）
         String orderId = SnowflakeIdUtil.nextIdStr();
 
-        // 2. 构建聚合对象（不包含拼团相关字段）
+        // 构建聚合对象（不包含拼团相关字段）
+        // userTakeOrderCount 将在消息监听器中通过交易规则过滤获取
         HotGoodsOrderAggregate hotGoodsOrderAggregate = HotGoodsOrderAggregate.builder()
                 .userEntity(userEntity)
                 .payActivityEntity(payActivityEntity)
                 .payDiscountEntity(payDiscountEntity)
-                .userTakeOrderCount(userTakeOrderCount)
+                .userTakeOrderCount(null) // 将在消息监听器中获取
                 .orderId(orderId)
                 .build();
 
         // 3. 构建库存扣减标识
-        String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + payActivityEntity.getActivityId() + "_" + payDiscountEntity.getGoodsId();
+
         String identifier = buildIdentifier(userEntity.getUserId(), orderId);
 
         // 4. 发送 RocketMQ 事务消息（本地事务中同步执行：Redis 扣减 + 数据库扣减 + 订单创建）
@@ -118,12 +106,15 @@ public class HotGoodsTradeService implements IHotGoodsTradeService {
         
         if (order != null && TradeOrderStatusEnumVO.CREATE.equals(order.getTradeOrderStatusEnumVO())) {
             // 订单已创建成功，执行旁路验证
+            // 生成拼接流水前缀
+            String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + payActivityEntity.getActivityId() + "_" + payDiscountEntity.getGoodsId();
+            // 进行旁路验证
             bypassVerify(goodsStockLogKey, identifier, orderId, userId);
             return order;
         }
 
         // 6. 如果查询不到订单，可能是网络延迟或数据库异常，发送延迟检查消息（疑似废单）
-        // ⚠️ 参考 NFTurbo：如果订单创建失败，发送 newBuyPlusPreCancel 延迟消息
+        // 参考 NFTurbo：如果订单创建失败，发送 newBuyPlusPreCancel 延迟消息
         // 延迟检查：如果订单确实不存在，回滚库存；如果订单已创建（网络延迟），做补偿处理
         log.warn("订单查询失败，发送延迟检查消息（疑似废单）: orderId={}", orderId);
         messageProducer.sendDelayMessage(

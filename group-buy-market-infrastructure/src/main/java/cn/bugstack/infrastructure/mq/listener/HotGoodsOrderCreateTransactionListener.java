@@ -5,14 +5,19 @@ import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.HotGoodsOrderAggregate;
 import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
+import cn.bugstack.domain.trade.model.entity.TradeLockRuleCommandEntity;
+import cn.bugstack.domain.trade.model.entity.TradeLockRuleFilterBackEntity;
 import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
+import cn.bugstack.domain.trade.service.lock.factory.TradeLockRuleFilterFactory;
+import cn.bugstack.infrastructure.mq.param.MessageBody;
 import cn.bugstack.types.exception.AppException;
+import cn.bugstack.wrench.design.framework.link.model2.chain.BusinessLinkedList;
 import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.annotation.RocketMQTransactionListener;
-import org.apache.rocketmq.spring.core.RocketMQLocalTransactionListener;
-import org.apache.rocketmq.spring.core.RocketMQLocalTransactionState;
-import org.springframework.messaging.Message;
+import org.apache.rocketmq.client.producer.LocalTransactionState;
+import org.apache.rocketmq.client.producer.TransactionListener;
+import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.common.message.MessageExt;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -20,7 +25,8 @@ import javax.annotation.Resource;
 /**
  * 热点商品订单创建本地事务监听器（Infrastructure层）
  * 
- * 对标 NFTurbo 的 OrderCreateTransactionListener（newBuyPlus 场景）
+ * 参考 NFTurbo 的 OrderCreateTransactionListener（newBuyPlus 场景）
+ * 使用 Spring Cloud Stream + RocketMQ 的 TransactionListener 接口
  * 
  * 本地事务执行：
  * 1. Redis 商品库存扣减
@@ -35,8 +41,7 @@ import javax.annotation.Resource;
  */
 @Slf4j
 @Component
-@RocketMQTransactionListener
-public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTransactionListener {
+public class HotGoodsOrderCreateTransactionListener implements TransactionListener {
 
     // 商品库存键前缀
     private static final String GOODS_STOCK_KEY_PREFIX = "group_buy_market_goods_stock_";
@@ -51,19 +56,42 @@ public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTran
     @Resource
     private ITradeRepository tradeRepository;
 
+    // 优化：在本地事务中执行交易规则过滤，减少数据库查询压力
+    // 这样可以先通过 Redis 和 MQ 进行流量拦截
+    @Resource(name = "hotGoodsTradeRuleFilter")
+    private BusinessLinkedList<TradeLockRuleCommandEntity, TradeLockRuleFilterFactory.DynamicContext, TradeLockRuleFilterBackEntity> hotGoodsTradeRuleFilter;
+
     @Override
-    @SuppressWarnings("rawtypes")
-    public RocketMQLocalTransactionState executeLocalTransaction(Message message, Object arg) {
+    public LocalTransactionState executeLocalTransaction(Message message, Object o) {
         HotGoodsOrderAggregate aggregate = null;
         boolean goodsStockDecreased = false;
         boolean dbStockDecreased = false;
         
         try {
-            aggregate = (HotGoodsOrderAggregate) arg;
+            // 从 message body 中解析参数（参考 NFTurbo）
+            MessageBody messageBody = JSON.parseObject(message.getBody(), MessageBody.class);
+            aggregate = JSON.parseObject(messageBody.getBody(), HotGoodsOrderAggregate.class);
             String userId = aggregate.getUserEntity().getUserId();
             String orderId = aggregate.getOrderId();
             Long activityId = aggregate.getPayActivityEntity().getActivityId();
             String goodsId = aggregate.getPayDiscountEntity().getGoodsId();
+
+            // 优化：在本地事务中执行交易规则过滤（活动有效性、用户参与次数等）
+            // 这样可以先通过 Redis 和 MQ 进行流量拦截，减少数据库连接数和 CPU 压力
+            TradeLockRuleFilterBackEntity tradeLockRuleFilterBackEntity = hotGoodsTradeRuleFilter.apply(
+                    TradeLockRuleCommandEntity.builder()
+                            .activityId(activityId)
+                            .userId(userId)
+                            .teamId(null) // 热点商品不做拼团，teamId 为 null
+                            .goodsId(goodsId)
+                            .build(),
+                    new TradeLockRuleFilterFactory.DynamicContext()
+            );
+
+            // 获取用户参与次数（用于构建数据库唯一索引）
+            Integer userTakeOrderCount = tradeLockRuleFilterBackEntity.getUserTakeOrderCount();
+            // 更新聚合对象中的 userTakeOrderCount
+            aggregate.setUserTakeOrderCount(userTakeOrderCount);
 
             String identifier = buildIdentifier(userId, orderId);
 
@@ -74,7 +102,7 @@ public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTran
             Long goodsStockResult = redisAdapter.decreaseStockWithLog(goodsStockKey, goodsStockLogKey, identifier, 1);
             if (goodsStockResult == null || goodsStockResult < 0) {
                 log.warn("热点商品-事务预扣减商品库存失败: activityId={}, goodsId={}, orderId={}", activityId, goodsId, orderId);
-                return RocketMQLocalTransactionState.ROLLBACK;
+                return LocalTransactionState.ROLLBACK_MESSAGE;
             }
             goodsStockDecreased = true;
             log.info("热点商品-事务预扣减商品库存成功: activityId={}, goodsId={}, orderId={}, 剩余库存={}",
@@ -86,18 +114,18 @@ public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTran
                 log.error("热点商品-数据库库存扣减失败: orderId={}, activityId={}, goodsId={}", orderId, activityId, goodsId);
                 // 回滚 Redis 库存
                 rollbackGoodsStock(goodsStockKey, goodsStockLogKey, identifier, orderId);
-                return RocketMQLocalTransactionState.ROLLBACK;
+                return LocalTransactionState.ROLLBACK_MESSAGE;
             }
             dbStockDecreased = true;
             log.info("热点商品-数据库库存扣减成功: orderId={}, activityId={}, goodsId={}", orderId, activityId, goodsId);
 
             // 3. 创建订单（在本地事务中同步执行，不创建队伍）
             try {
-                MarketPayOrderEntity orderEntity = tradeRepository.lockHotGoodsOrder(aggregate);
+                tradeRepository.lockHotGoodsOrder(aggregate);
                 log.info("热点商品-订单创建成功: orderId={}", orderId);
                 
                 // 所有操作成功，提交事务
-                return RocketMQLocalTransactionState.COMMIT;
+                return LocalTransactionState.COMMIT_MESSAGE;
             } catch (AppException e) {
                 log.warn("热点商品-订单创建失败，回滚所有库存: orderId={}, code={}", orderId, e.getCode());
                 // 回滚数据库库存
@@ -111,7 +139,7 @@ public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTran
                 }
                 // 回滚 Redis 库存
                 rollbackGoodsStock(goodsStockKey, goodsStockLogKey, identifier, orderId);
-                return RocketMQLocalTransactionState.ROLLBACK;
+                return LocalTransactionState.ROLLBACK_MESSAGE;
             }
         } catch (Exception e) {
             log.error("热点商品-RocketMQ 本地事务执行失败: orderId={}", 
@@ -143,18 +171,17 @@ public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTran
                 }
             }
             
-            return RocketMQLocalTransactionState.ROLLBACK;
+            return LocalTransactionState.ROLLBACK_MESSAGE;
         }
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
-    public RocketMQLocalTransactionState checkLocalTransaction(Message message) {
+    public LocalTransactionState checkLocalTransaction(MessageExt messageExt) {
         String orderId = "unknown";
         try {
-            // 1. 解析消息
-            String payload = new String((byte[]) message.getPayload());
-            HotGoodsOrderAggregate aggregate = JSON.parseObject(payload, HotGoodsOrderAggregate.class);
+            // 1. 解析消息（参考 NFTurbo）
+            MessageBody messageBody = JSON.parseObject(new String(messageExt.getBody()), MessageBody.class);
+            HotGoodsOrderAggregate aggregate = JSON.parseObject(messageBody.getBody(), HotGoodsOrderAggregate.class);
 
             orderId = aggregate.getOrderId();
             String userId = aggregate.getUserEntity().getUserId();
@@ -165,7 +192,7 @@ public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTran
             if (order != null && TradeOrderStatusEnumVO.CREATE.equals(order.getTradeOrderStatusEnumVO())) {
                 // 订单已创建成功，说明本地事务已成功
                 log.info("热点商品-事务回查-订单已创建成功: orderId={}, status={}", orderId, order.getTradeOrderStatusEnumVO());
-                return RocketMQLocalTransactionState.COMMIT;
+                return LocalTransactionState.COMMIT_MESSAGE;
             }
 
             // 订单不存在或状态不正确，检查 Redis 流水作为辅助判断
@@ -179,16 +206,16 @@ public class HotGoodsOrderCreateTransactionListener implements RocketMQLocalTran
             if (goodsLogEntry == null) {
                 // Redis 流水不存在，说明本地事务失败或未执行
                 log.warn("热点商品-事务回查-订单不存在且Redis流水不存在，本地事务失败: orderId={}", orderId);
-                return RocketMQLocalTransactionState.ROLLBACK;
+                return LocalTransactionState.ROLLBACK_MESSAGE;
             }
 
             // Redis 流水存在但订单不存在，可能是订单创建失败
             log.warn("热点商品-事务回查-Redis流水存在但订单不存在，可能订单创建失败: orderId={}", orderId);
-            return RocketMQLocalTransactionState.ROLLBACK;
+            return LocalTransactionState.ROLLBACK_MESSAGE;
 
         } catch (Exception e) {
-            log.error("热点商品-事务回查异常，返回UNKNOWN稍后重试: orderId={}, error={}", orderId, e.getMessage(), e);
-            return RocketMQLocalTransactionState.UNKNOWN;
+            log.error("热点商品-事务回查异常，返回ROLLBACK: orderId={}, error={}", orderId, e.getMessage(), e);
+            return LocalTransactionState.ROLLBACK_MESSAGE;
         }
     }
 

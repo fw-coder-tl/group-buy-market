@@ -8,10 +8,8 @@ import cn.bugstack.domain.activity.model.entity.TrialBalanceEntity;
 import cn.bugstack.domain.activity.model.valobj.GroupBuyActivityDiscountVO;
 import cn.bugstack.domain.activity.service.IIndexGroupBuyMarketService;
 import cn.bugstack.domain.trade.model.entity.*;
-import cn.bugstack.domain.trade.model.valobj.GroupBuyProgressVO;
 import cn.bugstack.domain.trade.model.valobj.NotifyConfigVO;
 import cn.bugstack.domain.trade.model.valobj.NotifyTypeEnumVO;
-import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import cn.bugstack.domain.trade.service.ITradeLockOrderService;
 import cn.bugstack.domain.trade.service.ITradeRefundOrderService;
 import cn.bugstack.domain.trade.service.ITradeSettlementOrderService;
@@ -27,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
-import java.util.Objects;
 
 /**
  * @author liang.tian
@@ -85,39 +82,17 @@ public class MarketTradeController implements IMarketTradeService {
                         .build();
             }
 
-            // ⭐ 根据 hotkey 判断商品类型（提前判断，用于后续逻辑）
+            // 根据 hotkey 判断商品类型（提前判断，用于后续逻辑）
             boolean isHotGoods = hotKeyDetector.isHotGoods(activityId, goodsId);
 
             // 查询 outTradeNo 是否已经存在交易记录
-            MarketPayOrderEntity marketPayOrderEntity = tradeOrderService.queryNoPayMarketPayOrderByOutTradeNo(userId, outTradeNo);
-            if (null != marketPayOrderEntity && TradeOrderStatusEnumVO.CREATE.equals(marketPayOrderEntity.getTradeOrderStatusEnumVO())) {
-                LockMarketPayOrderResponseDTO lockMarketPayOrderResponseDTO = LockMarketPayOrderResponseDTO.builder()
-                        .orderId(marketPayOrderEntity.getOrderId())
-                        .originalPrice(marketPayOrderEntity.getOriginalPrice())
-                        .deductionPrice(marketPayOrderEntity.getDeductionPrice())
-                        .payPrice(marketPayOrderEntity.getPayPrice())
-                        .tradeOrderStatus(marketPayOrderEntity.getTradeOrderStatusEnumVO().getCode())
-                        .build();
+            // todo (可以选择redis进行快速查询，避免数据库查询)
 
-                log.info("交易锁单记录(存在):{} marketPayOrderEntity:{}", userId, JSON.toJSONString(marketPayOrderEntity));
-                return Response.<LockMarketPayOrderResponseDTO>builder()
-                        .code(ResponseCode.SUCCESS.getCode())
-                        .info(ResponseCode.SUCCESS.getInfo())
-                        .data(lockMarketPayOrderResponseDTO)
-                        .build();
-            }
-
-            // ⭐ 判断拼团锁单是否完成了目标（仅普通商品需要检查，热点商品不做拼团）
-            if (!isHotGoods && StringUtils.isNotBlank(teamId)) {
-                GroupBuyProgressVO groupBuyProgressVO = tradeOrderService.queryGroupBuyProgress(teamId);
-                if (null != groupBuyProgressVO && Objects.equals(groupBuyProgressVO.getTargetCount(), groupBuyProgressVO.getLockCount())) {
-                    log.info("交易锁单拦截-拼单目标已达成:{} {}", userId, teamId);
-                    return Response.<LockMarketPayOrderResponseDTO>builder()
-                            .code(ResponseCode.E0006.getCode())
-                            .info(ResponseCode.E0006.getInfo())
-                            .build();
-                }
-            }
+            // ⚠️ 注意：拼团是否已满的检查已在以下位置自动完成，无需提前查询数据库：
+            // 1. Redis层：TeamStockOccupyRuleFilter 会检查 Redis 队伍库存，如果已满会抛出 E0008
+            // 2. 数据库层：TradeRepository.updateAddLockCount 会检查数据库，如果已满会抛出 E0005
+            // 3. 异常会被 catch (AppException e) 捕获并返回给前端
+            // 移除提前查询可以避免高并发下的数据库压力
 
             // 营销优惠试算
             TrialBalanceEntity trialBalanceEntity = indexGroupBuyMarketService.indexMarketTrial(MarketProductEntity.builder()
@@ -167,7 +142,8 @@ public class MarketTradeController implements IMarketTradeService {
                                     .build())
                     .build();
 
-            // ⭐ 根据 hotkey 判断走哪个接口（isHotGoods 已在前面定义）
+            // 根据 hotkey 判断走哪个接口（isHotGoods 已在前面定义）
+            MarketPayOrderEntity marketPayOrderEntity = null;
             if (isHotGoods) {
                 // 热点商品：走热点商品下单服务（不做拼团）
                 log.info("热点商品下单: userId={}, activityId={}, goodsId={}", userId, activityId, goodsId);

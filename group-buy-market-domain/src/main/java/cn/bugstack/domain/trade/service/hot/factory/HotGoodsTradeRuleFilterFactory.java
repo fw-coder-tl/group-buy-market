@@ -1,4 +1,4 @@
-package cn.bugstack.domain.trade.service.lock;
+package cn.bugstack.domain.trade.service.hot.factory;
 
 import cn.bugstack.domain.trade.model.entity.TradeLockRuleCommandEntity;
 import cn.bugstack.domain.trade.model.entity.TradeLockRuleFilterBackEntity;

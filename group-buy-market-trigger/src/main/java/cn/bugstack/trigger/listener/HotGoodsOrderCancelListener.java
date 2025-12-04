@@ -3,18 +3,21 @@ package cn.bugstack.trigger.listener;
 import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.HotGoodsOrderAggregate;
-import com.alibaba.fastjson.JSON;
+import cn.bugstack.infrastructure.mq.consumer.AbstractStreamConsumer;
+import cn.bugstack.infrastructure.mq.param.MessageBody;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.context.annotation.Bean;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.util.function.Consumer;
 
 /**
  * 热点商品订单取消消息监听器（Trigger层）
  * 
- * 对标 NFTurbo 的 NewBuyPlusMsgListener.newBuyPlusCancel
+ * 参考 NFTurbo 的 NewBuyPlusMsgListener.newBuyPlusCancel
+ * 使用 Spring Cloud Stream 的 Consumer 方式
  * 
  * 处理 hotGoodsOrderCancel 消息：
  * 1. 回滚库存（热点商品只回滚商品库存）
@@ -28,8 +31,7 @@ import javax.annotation.Resource;
  */
 @Slf4j
 @Component
-@RocketMQMessageListener(topic = "hotGoodsOrderCancel", consumerGroup = "hotGoodsOrderCancel-consumer")
-public class HotGoodsOrderCancelListener implements RocketMQListener<String> {
+public class HotGoodsOrderCancelListener extends AbstractStreamConsumer {
 
     @Resource
     private ISkuRepository skuRepository;
@@ -37,23 +39,25 @@ public class HotGoodsOrderCancelListener implements RocketMQListener<String> {
     @Resource
     private ITradeRepository tradeRepository;
 
-    @Override
-    public void onMessage(String message) {
-        try {
-            log.warn("热点商品订单取消消息-收到消息: message={}", message);
-            
-            // 1. 解析消息
-            HotGoodsOrderAggregate aggregate = JSON.parseObject(message, HotGoodsOrderAggregate.class);
-            String orderId = aggregate.getOrderId();
+    @Bean
+    Consumer<Message<MessageBody>> hotGoodsOrderCancel() {
+        return msg -> {
+            try {
+                log.warn("热点商品订单取消消息-收到消息");
+                
+                // 1. 解析消息（参考 NFTurbo）
+                HotGoodsOrderAggregate aggregate = getMessage(msg, HotGoodsOrderAggregate.class);
+                String orderId = aggregate.getOrderId();
 
-            // 2. 执行取消操作
-            doCancel(aggregate);
+                // 2. 执行取消操作
+                doCancel(aggregate);
 
-            log.info("热点商品订单取消消息-处理成功: orderId={}", orderId);
-        } catch (Exception e) {
-            log.error("热点商品订单取消消息-处理失败: message={}", message, e);
-            throw new RuntimeException("热点商品订单取消消息处理失败", e);
-        }
+                log.info("热点商品订单取消消息-处理成功: orderId={}", orderId);
+            } catch (Exception e) {
+                log.error("热点商品订单取消消息-处理失败", e);
+                throw new RuntimeException("热点商品订单取消消息处理失败", e);
+            }
+        };
     }
 
     /**

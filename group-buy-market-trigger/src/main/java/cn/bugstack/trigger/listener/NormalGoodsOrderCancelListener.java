@@ -4,20 +4,23 @@ import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.NormalGoodsOrderAggregate;
 import cn.bugstack.domain.trade.service.lock.factory.TradeLockRuleFilterFactory;
-import com.alibaba.fastjson.JSON;
+import cn.bugstack.infrastructure.mq.consumer.AbstractStreamConsumer;
+import cn.bugstack.infrastructure.mq.param.MessageBody;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.context.annotation.Bean;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
+import java.util.function.Consumer;
 
 /**
  * 普通商品订单取消消息监听器（Trigger层）
  * 
- * 对标 NFTurbo 的 NormalBuyMsgListener.normalBuyCancel
+ * 参考 NFTurbo 的 NormalBuyMsgListener.normalBuyCancel
+ * 使用 Spring Cloud Stream 的 Consumer 方式
  * 
  * 处理 normalBuyCancel 消息：
  * 1. cancelDecreaseInventory（取消扣减库存）
@@ -27,8 +30,7 @@ import javax.annotation.Resource;
  */
 @Slf4j
 @Component
-@RocketMQMessageListener(topic = "normalGoodsOrderCancel", consumerGroup = "normalGoodsOrderCancel-consumer")
-public class NormalGoodsOrderCancelListener implements RocketMQListener<String> {
+public class NormalGoodsOrderCancelListener extends AbstractStreamConsumer {
 
     @Resource
     private ISkuRepository skuRepository;
@@ -36,23 +38,25 @@ public class NormalGoodsOrderCancelListener implements RocketMQListener<String> 
     @Resource
     private ITradeRepository tradeRepository;
 
-    @Override
-    public void onMessage(String message) {
-        try {
-            log.info("普通商品订单取消消息-收到消息: message={}", message);
-            
-            // 1. 解析消息
-            NormalGoodsOrderAggregate aggregate = JSON.parseObject(message, NormalGoodsOrderAggregate.class);
-            String orderId = aggregate.getOrderId();
+    @Bean
+    Consumer<Message<MessageBody>> normalGoodsOrderCancel() {
+        return msg -> {
+            try {
+                log.info("普通商品订单取消消息-收到消息");
+                
+                // 1. 解析消息（参考 NFTurbo）
+                NormalGoodsOrderAggregate aggregate = getMessage(msg, NormalGoodsOrderAggregate.class);
+                String orderId = aggregate.getOrderId();
 
-            // 2. 执行取消操作
-            doCancel(aggregate);
+                // 2. 执行取消操作
+                doCancel(aggregate);
 
-            log.info("普通商品订单取消消息-处理成功: orderId={}", orderId);
-        } catch (Exception e) {
-            log.error("普通商品订单取消消息-处理失败: message={}", message, e);
-            throw new RuntimeException("普通商品订单取消消息处理失败", e);
-        }
+                log.info("普通商品订单取消消息-处理成功: orderId={}", orderId);
+            } catch (Exception e) {
+                log.error("普通商品订单取消消息-处理失败", e);
+                throw new RuntimeException("普通商品订单取消消息处理失败", e);
+            }
+        };
     }
 
     /**

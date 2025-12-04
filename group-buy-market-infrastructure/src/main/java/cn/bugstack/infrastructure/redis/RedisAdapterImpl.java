@@ -131,7 +131,7 @@ public class RedisAdapterImpl implements IRedisAdapter {
                 "-- 记录流水 (用于旁路验证)",
                 "local time = redis.call('time')",
                 "local timestamp = (time[1] * 1000) + math.floor(time[2] / 1000)",
-                "redis.call('hset', KEYS[2], ARGV[2], cjson.encode({",  // ⭐ 继续使用 cjson.encode
+                "redis.call('hset', KEYS[2], ARGV[2], cjson.encode({",  // 继续使用 cjson.encode
                 "    action = 'decrease',",
                 "    from = current,",
                 "    to = new,",
@@ -178,7 +178,7 @@ public class RedisAdapterImpl implements IRedisAdapter {
                 "-- 记录回滚流水",
                 "local time = redis.call('time')",
                 "local timestamp = (time[1] * 1000) + math.floor(time[2] / 1000)",
-                "redis.call('hset', KEYS[2], ARGV[2], cjson.encode({",  // ⭐ 继续使用 cjson.encode
+                "redis.call('hset', KEYS[2], ARGV[2], cjson.encode({",  // 继续使用 cjson.encode
                 "    action = 'increase',",
                 "    from = current,",
                 "    to = new,",
@@ -192,7 +192,7 @@ public class RedisAdapterImpl implements IRedisAdapter {
                 "return new"
         );
 
-        // ⭐ 使用 StringCodec 执行 Lua 脚本
+        // 使用 StringCodec 执行 Lua 脚本
         return redissonClient.getScript(StringCodec.INSTANCE).eval(
                 RScript.Mode.READ_WRITE,
                 luaScript,
@@ -207,7 +207,7 @@ public class RedisAdapterImpl implements IRedisAdapter {
         try {
             String luaScript = "return redis.call('hget', KEYS[1], ARGV[1])";
 
-            // ⭐ 使用 StringCodec 避免序列化问题
+            // 使用 StringCodec 避免序列化问题
             String result = redissonClient.getScript(StringCodec.INSTANCE).eval(
                     RScript.Mode.READ_ONLY,
                     luaScript,
@@ -230,7 +230,7 @@ public class RedisAdapterImpl implements IRedisAdapter {
         try {
             String luaScript = "return redis.call('hdel', KEYS[1], ARGV[1])";
 
-            // ⭐ 使用 StringCodec
+            // 使用 StringCodec
             redissonClient.getScript(StringCodec.INSTANCE).eval(
                     RScript.Mode.READ_WRITE,
                     luaScript,
@@ -255,7 +255,7 @@ public class RedisAdapterImpl implements IRedisAdapter {
         try {
             String luaScript = "return redis.call('HGETALL', KEYS[1])";
 
-            // ⭐ 使用 StringCodec 避免序列化问题
+            // 使用 StringCodec 避免序列化问题
             List<String> result = redissonClient.getScript(StringCodec.INSTANCE).eval(
                     RScript.Mode.READ_ONLY,
                     luaScript,

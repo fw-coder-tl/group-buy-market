@@ -5,19 +5,22 @@ import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.HotGoodsOrderAggregate;
 import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
 import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
-import com.alibaba.fastjson.JSON;
+import cn.bugstack.infrastructure.mq.consumer.AbstractStreamConsumer;
+import cn.bugstack.infrastructure.mq.param.MessageBody;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.springframework.context.annotation.Bean;
+import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
+import java.util.function.Consumer;
 
 /**
  * 热点商品订单疑似取消消息监听器（Trigger层）
  * 
- * 对标 NFTurbo 的 NewBuyPlusMsgListener.newBuyPlusPreCancel
+ * 参考 NFTurbo 的 NewBuyPlusMsgListener.newBuyPlusPreCancel
+ * 使用 Spring Cloud Stream 的 Consumer 方式
  * 
  * 处理 hotGoodsOrderPreCancel 消息（延迟消息）：
  * 1. 检查订单状态
@@ -33,8 +36,7 @@ import javax.annotation.Resource;
  */
 @Slf4j
 @Component
-@RocketMQMessageListener(topic = "hotGoodsOrderPreCancel", consumerGroup = "hotGoodsOrderPreCancel-consumer")
-public class HotGoodsOrderPreCancelListener implements RocketMQListener<String> {
+public class HotGoodsOrderPreCancelListener extends AbstractStreamConsumer {
 
     @Resource
     private ISkuRepository skuRepository;
@@ -42,40 +44,42 @@ public class HotGoodsOrderPreCancelListener implements RocketMQListener<String> 
     @Resource
     private ITradeRepository tradeRepository;
 
-    @Override
-    public void onMessage(String message) {
-        try {
-            log.warn("热点商品订单疑似取消消息-收到消息: message={}", message);
-            
-            // 1. 解析消息
-            HotGoodsOrderAggregate aggregate = JSON.parseObject(message, HotGoodsOrderAggregate.class);
-            String orderId = aggregate.getOrderId();
-            String userId = aggregate.getUserEntity().getUserId();
+    @Bean
+    Consumer<Message<MessageBody>> hotGoodsOrderPreCancel() {
+        return msg -> {
+            try {
+                log.warn("热点商品订单疑似取消消息-收到消息");
+                
+                // 1. 解析消息（参考 NFTurbo）
+                HotGoodsOrderAggregate aggregate = getMessage(msg, HotGoodsOrderAggregate.class);
+                String orderId = aggregate.getOrderId();
+                String userId = aggregate.getUserEntity().getUserId();
 
-            // 2. 查询订单状态
-            MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
-            
-            // 3. 如果订单已经创建成功（状态为 CREATE），说明之前查询失败（网络延迟或数据库异常）
-            if (order != null && TradeOrderStatusEnumVO.CREATE.equals(order.getTradeOrderStatusEnumVO())) {
-                log.info("热点商品订单疑似取消消息-订单已创建成功，之前查询失败（网络延迟或数据库异常），做补偿处理: orderId={}, status={}", 
-                        orderId, order.getTradeOrderStatusEnumVO());
+                // 2. 查询订单状态
+                MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
                 
-                // ⚠️ 注意：热点商品不做拼团，所以不需要更新商品销量等补偿操作
-                // 如果后续需要补偿操作（如更新商品销量），可以在这里添加
-                // 参考 NFTurbo: goodsFacadeService.saleWithoutHint(goodsSaleRequest);
-                
-                return;
+                // 3. 如果订单已经创建成功（状态为 CREATE），说明之前查询失败（网络延迟或数据库异常）
+                if (order != null && TradeOrderStatusEnumVO.CREATE.equals(order.getTradeOrderStatusEnumVO())) {
+                    log.info("热点商品订单疑似取消消息-订单已创建成功，之前查询失败（网络延迟或数据库异常），做补偿处理: orderId={}, status={}", 
+                            orderId, order.getTradeOrderStatusEnumVO());
+                    
+                    // ⚠️ 注意：热点商品不做拼团，所以不需要更新商品销量等补偿操作
+                    // 如果后续需要补偿操作（如更新商品销量），可以在这里添加
+                    // 参考 NFTurbo: goodsFacadeService.saleWithoutHint(goodsSaleRequest);
+                    
+                    return;
+                }
+
+                // 4. 订单不存在，回滚库存
+                log.warn("热点商品订单疑似取消消息-订单不存在，回滚库存: orderId={}", orderId);
+                doCancel(aggregate);
+
+                log.info("热点商品订单疑似取消消息-处理成功: orderId={}", orderId);
+            } catch (Exception e) {
+                log.error("热点商品订单疑似取消消息-处理失败", e);
+                throw new RuntimeException("热点商品订单疑似取消消息处理失败", e);
             }
-
-            // 4. 订单不存在，回滚库存
-            log.warn("热点商品订单疑似取消消息-订单不存在，回滚库存: orderId={}", orderId);
-            doCancel(aggregate);
-
-            log.info("热点商品订单疑似取消消息-处理成功: orderId={}", orderId);
-        } catch (Exception e) {
-            log.error("热点商品订单疑似取消消息-处理失败: message={}", message, e);
-            throw new RuntimeException("热点商品订单疑似取消消息处理失败", e);
-        }
+        };
     }
 
     /**
