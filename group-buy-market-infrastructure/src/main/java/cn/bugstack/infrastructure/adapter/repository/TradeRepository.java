@@ -452,7 +452,7 @@ public class TradeRepository implements ITradeRepository {
                 .originalPrice(payDiscountEntity.getOriginalPrice())
                 .deductionPrice(payDiscountEntity.getDeductionPrice())
                 .payPrice(payDiscountEntity.getPayPrice())
-                .status(TradeOrderStatusEnumVO.TRY.getCode()) // ⭐ TCC Try 阶段，状态为 TRY
+                .status(TradeOrderStatusEnumVO.TRY.getCode()) // TCC Try 阶段，状态为 TRY
                 .outTradeNo(payDiscountEntity.getOutTradeNo())
                 // 构建 bizId 唯一值；活动id_用户id_参与次数累加
                 .bizId(payActivityEntity.getActivityId() + Constants.UNDERLINE + userEntity.getUserId() + Constants.UNDERLINE + (userTakeOrderCount + 1))
@@ -469,7 +469,7 @@ public class TradeRepository implements ITradeRepository {
                 .originalPrice(payDiscountEntity.getOriginalPrice())
                 .deductionPrice(payDiscountEntity.getDeductionPrice())
                 .payPrice(payDiscountEntity.getPayPrice())
-                .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.TRY) // ⭐ TCC Try 阶段
+                .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.TRY) // TCC Try 阶段
                 .teamId(teamId)
                 .build();
     }

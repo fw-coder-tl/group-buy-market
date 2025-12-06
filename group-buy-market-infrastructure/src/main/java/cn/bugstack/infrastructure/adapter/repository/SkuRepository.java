@@ -2,6 +2,7 @@ package cn.bugstack.infrastructure.adapter.repository;
 
 import cn.bugstack.domain.trade.adapter.port.IRedisAdapter;
 import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
+import cn.bugstack.infrastructure.dao.IGroupBuyOrderDao;
 import cn.bugstack.infrastructure.dao.IInventoryDeductionLogDao;
 import cn.bugstack.infrastructure.dao.ISkuActivityDao;
 import cn.bugstack.infrastructure.dao.po.InventoryDeductionLog;
@@ -25,6 +26,9 @@ public class SkuRepository implements ISkuRepository {
 
     @Resource
     private IRedisAdapter redisAdapter;
+
+    @Resource
+    private IGroupBuyOrderDao groupBuyOrderDao;
 
     // 商品库存 Redis 前缀
     private static final String GOODS_STOCK_KEY_PREFIX = "group_buy_market_goods_stock_";
@@ -140,27 +144,75 @@ public class SkuRepository implements ISkuRepository {
      * 3. 不扣减数据库库存
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean tryDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId, String userId) {
         try {
-            // 1. 构建 Redis Key
-            String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
-            String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
-            String identifier = "TRY_" + userId + "_" + orderId;
+            // 1. 幂等性检查：先查询流水表
+            InventoryDeductionLog existingLog = inventoryDeductionLogDao.queryByOrderId(orderId);
+            if (existingLog != null) {
+                log.info("TCC Try-库存已预扣减（幂等），跳过: orderId={}, activityId={}, goodsId={}", 
+                        orderId, activityId, goodsId);
+                return true; // 已扣减过，直接返回成功
+            }
 
-            // 2. 在 Redis 中预扣减库存（记录流水）
-            Long result = redisAdapter.decreaseStockWithLog(goodsStockKey, goodsStockLogKey, identifier, quantity);
-            
-            if (result == null || result < 0) {
-                log.warn("TCC Try-Redis预扣减库存失败: orderId={}, activityId={}, goodsId={}, result={}", 
-                        orderId, activityId, goodsId, result);
+            // 2. 查询当前库存信息
+            SkuActivity skuActivity = skuActivityDao.querySkuActivity(activityId, goodsId);
+            if (skuActivity == null) {
+                log.error("TCC Try-SKU不存在: activityId={}, goodsId={}", activityId, goodsId);
                 return false;
             }
 
-            log.info("TCC Try-Redis预扣减库存成功: orderId={}, activityId={}, goodsId={}, quantity={}, 剩余库存={}", 
-                    orderId, activityId, goodsId, quantity, result);
+            // 3. 检查可售库存（可售库存 - 冻结库存 >= 扣减数量）
+            int availableStock = skuActivity.getSaleableInventory() - skuActivity.getFrozenInventory();
+            if (availableStock < quantity) {
+                log.warn("TCC Try-可售库存不足: activityId={}, goodsId={}, available={}, need={}", 
+                        activityId, goodsId, availableStock, quantity);
+                return false;
+            }
+
+            int beforeSaleable = skuActivity.getSaleableInventory();
+            int beforeFrozen = skuActivity.getFrozenInventory();
+            int lockVersion = skuActivity.getLockVersion();
+
+            // 4. 在数据库中冻结库存（增加冻结库存，不减少可售库存）
+            // 对标 NFTurbo 的 freezeInventory：UPDATE collection SET frozen_inventory = frozen_inventory + #{quantity}
+            int updateCount = skuActivityDao.freezeInventory(activityId, goodsId, quantity, lockVersion);
+            if (updateCount <= 0) {
+                log.warn("TCC Try-冻结库存失败（版本冲突或库存不足）: activityId={}, goodsId={}, lockVersion={}", 
+                        activityId, goodsId, lockVersion);
+                return false;
+            }
+
+            // 5. 插入库存流水（在同一个事务中）
+            // 对标 NFTurbo：插入流水和更新库存在同一个事务中
+            try {
+                InventoryDeductionLog logEntry = InventoryDeductionLog.builder()
+                        .orderId(orderId)
+                        .userId(userId)
+                        .activityId(activityId)
+                        .goodsId(goodsId)
+                        .quantity(quantity)
+                        .beforeSaleable(beforeSaleable)
+                        .afterSaleable(beforeSaleable) // TCC Try阶段，可售库存不变
+                        .beforeFrozen(beforeFrozen)
+                        .afterFrozen(beforeFrozen + quantity) // 增加冻结库存
+                        .lockVersion(lockVersion)
+                        .status("TRY") // 状态为TRY，供Confirm阶段查询
+                        .build();
+
+                inventoryDeductionLogDao.insert(logEntry);
+            } catch (DuplicateKeyException e) {
+                // 唯一索引冲突，说明并发情况下已经有其他线程插入成功
+                log.warn("TCC Try-库存扣减流水重复（并发幂等）: orderId={}", orderId);
+                return true;
+            }
+
+            log.info("TCC Try-冻结库存成功: orderId={}, activityId={}, goodsId={}, quantity={}, " +
+                    "beforeFrozen={}, afterFrozen={}", 
+                    orderId, activityId, goodsId, quantity, beforeFrozen, beforeFrozen + quantity);
             return true;
         } catch (Exception e) {
-            log.error("TCC Try-Redis预扣减库存异常: orderId={}, activityId={}, goodsId={}", 
+            log.error("TCC Try-冻结库存异常: orderId={}, activityId={}, goodsId={}", 
                     orderId, activityId, goodsId, e);
             return false;
         }
@@ -247,5 +299,120 @@ public class SkuRepository implements ISkuRepository {
         log.info("TCC Cancel-取消扣减库存成功: orderId={}, activityId={}, goodsId={}, quantity={}", 
                 orderId, activityId, goodsId, quantity);
         return true;
+    }
+
+    /**
+     * 原子操作：在同一个事务中扣减商品库存和增加队伍人数
+     * 
+     * 对标 newBuyPlus：在本地事务中同步执行数据库操作
+     * 
+     * 实现逻辑：
+     * 1. 幂等性检查：先查询流水表
+     * 2. 乐观锁重试逻辑（最多3次）
+     * 3. 检查可售库存
+     * 4. 原子操作：扣减商品库存 + 插入流水
+     * 5. 如果teamId不为空，增加队伍人数（updateAddLockCount）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean decreaseSkuStockAndIncreaseTeamCount(Long activityId, String goodsId, Integer quantity,
+                                                        String teamId, String orderId, String userId) {
+        // 1. 幂等性检查：先查询流水表
+        InventoryDeductionLog existingLog = inventoryDeductionLogDao.queryByOrderId(orderId);
+        if (existingLog != null) {
+            log.info("原子操作-库存已扣减（幂等），跳过: orderId={}, activityId={}, goodsId={}, teamId={}",
+                    orderId, activityId, goodsId, teamId);
+            return true; // 已扣减过，直接返回成功
+        }
+
+        // 2. 乐观锁重试逻辑
+        for (int i = 0; i < MAX_RETRY; i++) {
+            try {
+                // 2.1 查询当前库存
+                SkuActivity skuActivity = skuActivityDao.querySkuActivity(activityId, goodsId);
+                if (skuActivity == null) {
+                    log.error("原子操作-SKU不存在: activityId={}, goodsId={}", activityId, goodsId);
+                    return false;
+                }
+
+                // 2.2 检查可售库存
+                if (skuActivity.getSaleableInventory() < quantity) {
+                    log.warn("原子操作-SKU库存不足: activityId={}, goodsId={}, saleable={}, need={}",
+                            activityId, goodsId, skuActivity.getSaleableInventory(), quantity);
+                    return false;
+                }
+
+                int beforeSaleable = skuActivity.getSaleableInventory();
+                int beforeFrozen = skuActivity.getFrozenInventory();
+                int lockVersion = skuActivity.getLockVersion();
+
+                // 3. 原子操作：扣减库存 + 插入流水
+                int updateCount = skuActivityDao.decreaseSkuStock(activityId, goodsId, quantity, lockVersion);
+
+                if (updateCount > 0) {
+                    // 3.1 插入扣减流水（唯一索引保证幂等）
+                    InventoryDeductionLog logEntry = InventoryDeductionLog.builder()
+                            .orderId(orderId)
+                            .userId(userId)
+                            .activityId(activityId)
+                            .goodsId(goodsId)
+                            .quantity(quantity)
+                            .beforeSaleable(beforeSaleable)
+                            .afterSaleable(beforeSaleable) // TCC模型，下单时可售库存不变
+                            .beforeFrozen(beforeFrozen)
+                            .afterFrozen(beforeFrozen + quantity)
+                            .lockVersion(lockVersion)
+                            .status("SUCCESS")
+                            .build();
+
+                    try {
+                        inventoryDeductionLogDao.insert(logEntry);
+                    } catch (DuplicateKeyException e) {
+                        // 唯一索引冲突，说明并发情况下已经有其他线程扣减成功并插入了流水
+                        log.warn("原子操作-库存扣减流水重复（并发幂等）: orderId={}", orderId);
+                        return true;
+                    }
+
+                    // 3.2 如果teamId不为空，增加队伍人数（在同一个事务中）
+                    if (teamId != null && !teamId.trim().isEmpty()) {
+                        int updateAddTargetCount = groupBuyOrderDao.updateAddLockCount(teamId);
+                        if (updateAddTargetCount != 1) {
+                            // 队伍已满或不存在，回滚事务
+                            log.warn("原子操作-增加队伍人数失败（队伍已满或不存在）: teamId={}, orderId={}, updateCount={}",
+                                    teamId, orderId, updateAddTargetCount);
+                            throw new RuntimeException("队伍已满或不存在");
+                        }
+                        log.info("原子操作-增加队伍人数成功: teamId={}, orderId={}", teamId, orderId);
+                    }
+
+                    log.info("原子操作-扣减SKU库存并增加队伍人数成功: orderId={}, activityId={}, goodsId={}, " +
+                            "quantity={}, teamId={}, version={}",
+                            orderId, activityId, goodsId, quantity, teamId, lockVersion);
+                    return true;
+                }
+
+                log.warn("原子操作-扣减SKU库存失败（版本冲突），重试: activityId={}, goodsId={}, retry={}/{}",
+                        activityId, goodsId, i + 1, MAX_RETRY);
+
+            } catch (Exception e) {
+                log.error("原子操作-扣减SKU库存异常: activityId={}, goodsId={}, retry={}/{}",
+                        activityId, goodsId, i + 1, MAX_RETRY, e);
+                
+                // 如果是队伍已满异常，直接返回失败，不重试
+                if (e.getMessage() != null && e.getMessage().contains("队伍已满")) {
+                    return false;
+                }
+            }
+
+            // 短暂等待后重试
+            try {
+                Thread.sleep(10 * (i + 1));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        log.error("原子操作-扣减SKU库存失败，已达最大重试次数: activityId={}, goodsId={}", activityId, goodsId);
+        return false;
     }
 }

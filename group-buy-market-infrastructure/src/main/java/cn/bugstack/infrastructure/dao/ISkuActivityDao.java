@@ -31,6 +31,22 @@ public interface ISkuActivityDao {
                         @Param("quantity") Integer quantity);
     
     /**
+     * TCC Try：冻结库存（增加冻结库存，不减少可售库存）
+     * 
+     * 对标 NFTurbo 的 freezeInventory
+     * 
+     * @param activityId 活动ID
+     * @param goodsId 商品ID
+     * @param quantity 冻结数量
+     * @param oldVersion 乐观锁版本号
+     * @return 更新行数
+     */
+    int freezeInventory(@Param("activityId") Long activityId,
+                        @Param("goodsId") String goodsId, 
+                        @Param("quantity") Integer quantity,
+                        @Param("oldVersion") Integer oldVersion);
+    
+    /**
      * 查询SKU库存信息
      */
     SkuActivity querySkuActivity(@Param("activityId") Long activityId,

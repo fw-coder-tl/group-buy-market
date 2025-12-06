@@ -41,21 +41,8 @@ public class NormalGoodsOrderCancelListener extends AbstractStreamConsumer {
     @Bean
     Consumer<Message<MessageBody>> normalGoodsOrderCancel() {
         return msg -> {
-            try {
-                log.info("普通商品订单取消消息-收到消息");
-                
-                // 1. 解析消息（参考 NFTurbo）
-                NormalGoodsOrderAggregate aggregate = getMessage(msg, NormalGoodsOrderAggregate.class);
-                String orderId = aggregate.getOrderId();
-
-                // 2. 执行取消操作
-                doCancel(aggregate);
-
-                log.info("普通商品订单取消消息-处理成功: orderId={}", orderId);
-            } catch (Exception e) {
-                log.error("普通商品订单取消消息-处理失败", e);
-                throw new RuntimeException("普通商品订单取消消息处理失败", e);
-            }
+            NormalGoodsOrderAggregate aggregate = getMessage(msg, NormalGoodsOrderAggregate.class);
+            doCancel(aggregate);
         };
     }
 
@@ -72,17 +59,15 @@ public class NormalGoodsOrderCancelListener extends AbstractStreamConsumer {
         Integer validTime = aggregate.getPayActivityEntity().getValidTime();
 
         // 1. 取消扣减库存（回滚 Redis 库存）
-        boolean cancelInventoryResult = skuRepository.cancelDecreaseInventory(activityId, goodsId, 1, orderId);
-        Assert.isTrue(cancelInventoryResult, "cancelDecreaseInventory failed");
+        boolean result = skuRepository.cancelDecreaseInventory(activityId, goodsId, 1, orderId);
+        Assert.isTrue(result, "cancelDecreaseInventory failed");
 
         // 2. 回滚拼团库存（如果已扣减）
         rollbackTeamStockIfNeeded(activityId, teamId, validTime, orderId);
 
         // 3. 取消订单（将订单状态改为 CANCEL）
-        boolean cancelOrderResult = tradeRepository.cancelOrder(orderId);
-        Assert.isTrue(cancelOrderResult, "cancelOrder failed");
-
-        log.info("普通商品订单取消-成功: orderId={}, activityId={}, goodsId={}, teamId={}", orderId, activityId, goodsId, teamId);
+        result = tradeRepository.cancelOrder(orderId);
+        Assert.isTrue(result, "cancelOrder failed");
     }
 
     /**

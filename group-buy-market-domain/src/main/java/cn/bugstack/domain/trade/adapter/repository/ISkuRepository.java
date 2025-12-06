@@ -61,4 +61,20 @@ public interface ISkuRepository {
      * @return 是否成功
      */
     boolean cancelDecreaseInventory(Long activityId, String goodsId, Integer quantity, String orderId);
+
+    /**
+     * 原子操作：在同一个事务中扣减商品库存和增加队伍人数
+     * 
+     * 对标 newBuyPlus：在本地事务中同步执行数据库操作
+     * 
+     * @param activityId 活动ID
+     * @param goodsId 商品ID
+     * @param quantity 商品扣减数量
+     * @param teamId 队伍ID（可为null，表示不需要增加队伍人数）
+     * @param orderId 订单ID（用于幂等性检查）
+     * @param userId 用户ID（用于记录流水）
+     * @return 是否成功
+     */
+    boolean decreaseSkuStockAndIncreaseTeamCount(Long activityId, String goodsId, Integer quantity, 
+                                                  String teamId, String orderId, String userId);
 }

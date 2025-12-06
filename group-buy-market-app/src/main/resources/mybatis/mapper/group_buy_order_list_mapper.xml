@@ -161,4 +161,11 @@
         limit 1
     </select>
 
+    <!-- TCC 模式：更新订单状态（TRY=3, CONFIRM=4, CANCEL=5） -->
+    <update id="updateOrderStatus" parameterType="map">
+        update group_buy_order_list
+        set status = #{status}, update_time = now()
+        where order_id = #{orderId}
+    </update>
+
 </mapper>

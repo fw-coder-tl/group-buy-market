@@ -2,7 +2,6 @@ package cn.bugstack.infrastructure.redis;
 
 import cn.bugstack.domain.trade.adapter.port.IRedisAdapter;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RMap;
 import org.redisson.api.RScript;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.RedisException;
@@ -344,6 +343,149 @@ public class RedisAdapterImpl implements IRedisAdapter {
             log.error("初始化商品库存失败: activityId={}, goodsId={}, stockCount={}, error={}", 
                     activityId, goodsId, stockCount, e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * 原子操作：扣减商品库存 + 增加队伍人数
+     * 
+     * 对标 newBuyPlus：在同一个 Lua 脚本中同时执行商品库存扣减和队伍人数增加
+     * 
+     * 实现逻辑：
+     * 1. 幂等性检查（商品库存流水和队伍库存流水）
+     * 2. 检查商品库存是否足够
+     * 3. 检查队伍是否已满（如果teamStockKey不为空）
+     * 4. 原子扣减商品库存
+     * 5. 原子增加队伍人数（如果teamStockKey不为空）
+     * 6. 记录流水
+     */
+    @Override
+    public IRedisAdapter.StockDecreaseResult decreaseGoodsStockAndIncreaseTeamStock(
+            String goodsStockKey, String goodsStockLogKey,
+            String teamStockKey, String teamStockLogKey,
+            String identifier, int goodsCount, int teamTargetCount) {
+        
+        // 如果不需要增加队伍人数，只扣减商品库存
+        if (teamStockKey == null || teamStockLogKey == null) {
+            Long goodsResult = decreaseStockWithLog(goodsStockKey, goodsStockLogKey, identifier, goodsCount);
+            if (goodsResult == null || goodsResult < 0) {
+                return new IRedisAdapter.StockDecreaseResult(null, null, false, "STOCK_NOT_ENOUGH");
+            }
+            return new IRedisAdapter.StockDecreaseResult(goodsResult, null, true, null);
+        }
+
+        // 需要同时扣减商品库存和增加队伍人数
+        String luaScript = String.join("\n",
+                "-- 幂等性检查：商品库存流水",
+                "if redis.call('hexists', KEYS[2], ARGV[3]) == 1 then",
+                "    return redis.error_reply('GOODS_OPERATION_ALREADY_EXECUTED')",
+                "end",
+                "",
+                "-- 幂等性检查：队伍库存流水",
+                "if redis.call('hexists', KEYS[4], ARGV[3]) == 1 then",
+                "    return redis.error_reply('TEAM_OPERATION_ALREADY_EXECUTED')",
+                "end",
+                "",
+                "-- 检查商品库存",
+                "local goodsCurrent = redis.call('get', KEYS[1])",
+                "if goodsCurrent == false then",
+                "    return redis.error_reply('GOODS_STOCK_KEY_NOT_FOUND')",
+                "end",
+                "if tonumber(goodsCurrent) < tonumber(ARGV[1]) then",
+                "    return redis.error_reply('GOODS_STOCK_NOT_ENOUGH')",
+                "end",
+                "",
+                "-- 检查队伍库存（如果队伍库存不存在，初始化为0）",
+                "local teamCurrent = redis.call('get', KEYS[3])",
+                "if teamCurrent == false then",
+                "    teamCurrent = '0'",
+                "end",
+                "local teamCurrentCount = tonumber(teamCurrent)",
+                "local teamTarget = tonumber(ARGV[2])",
+                "",
+                "-- 检查队伍是否已满",
+                "if teamCurrentCount >= teamTarget then",
+                "    return redis.error_reply('TEAM_FULL')",
+                "end",
+                "",
+                "-- 原子扣减商品库存",
+                "local goodsNew = tonumber(goodsCurrent) - tonumber(ARGV[1])",
+                "redis.call('set', KEYS[1], tostring(goodsNew))",
+                "",
+                "-- 原子增加队伍人数",
+                "local teamNew = teamCurrentCount + 1",
+                "redis.call('set', KEYS[3], tostring(teamNew))",
+                "",
+                "-- 记录商品库存流水",
+                "local time = redis.call('time')",
+                "local timestamp = (time[1] * 1000) + math.floor(time[2] / 1000)",
+                "redis.call('hset', KEYS[2], ARGV[3], cjson.encode({",
+                "    action = 'decrease',",
+                "    from = goodsCurrent,",
+                "    to = goodsNew,",
+                "    change = ARGV[1],",
+                "    by = ARGV[3],",
+                "    timestamp = timestamp",
+                "}))",
+                "redis.call('expire', KEYS[2], 86400)",
+                "",
+                "-- 记录队伍库存流水",
+                "redis.call('hset', KEYS[4], ARGV[3], cjson.encode({",
+                "    action = 'increase_team',",
+                "    from = teamCurrentCount,",
+                "    to = teamNew,",
+                "    change = 1,",
+                "    targetCount = teamTarget,",
+                "    by = ARGV[3],",
+                "    timestamp = timestamp",
+                "}))",
+                "redis.call('expire', KEYS[4], 86400)",
+                "",
+                "-- 返回结果：商品剩余库存,队伍当前人数",
+                "return {goodsNew, teamNew}"
+        );
+
+        try {
+            List<Long> result = redissonClient.getScript().eval(
+                    RScript.Mode.READ_WRITE,
+                    luaScript,
+                    RScript.ReturnType.MULTI,
+                    Arrays.asList(goodsStockKey, goodsStockLogKey, teamStockKey, teamStockLogKey),
+                    goodsCount, teamTargetCount, identifier
+            );
+
+            if (result != null && result.size() >= 2) {
+                Long goodsRemainingStock = result.get(0);
+                Long teamCurrentCount = result.get(1);
+                log.info("原子操作-扣减商品库存并增加队伍人数成功: goodsStockKey={}, teamStockKey={}, " +
+                        "商品剩余库存={}, 队伍当前人数={}/{}",
+                        goodsStockKey, teamStockKey, goodsRemainingStock, teamCurrentCount, teamTargetCount);
+                return new IRedisAdapter.StockDecreaseResult(goodsRemainingStock, teamCurrentCount, true, null);
+            } else {
+                log.error("原子操作-返回结果格式错误: result={}", result);
+                return new IRedisAdapter.StockDecreaseResult(null, null, false, "UNKNOWN_ERROR");
+            }
+        } catch (RedisException e) {
+            String errorMsg = e.getMessage();
+            log.error("原子操作-扣减商品库存并增加队伍人数失败: goodsStockKey={}, teamStockKey={}, error={}",
+                    goodsStockKey, teamStockKey, errorMsg);
+            
+            // 解析错误码
+            String errorCode = "UNKNOWN_ERROR";
+            if (errorMsg != null) {
+                if (errorMsg.contains("GOODS_STOCK_NOT_ENOUGH")) {
+                    errorCode = "GOODS_STOCK_NOT_ENOUGH";
+                } else if (errorMsg.contains("TEAM_FULL")) {
+                    errorCode = "TEAM_FULL";
+                } else if (errorMsg.contains("GOODS_OPERATION_ALREADY_EXECUTED") || 
+                           errorMsg.contains("TEAM_OPERATION_ALREADY_EXECUTED")) {
+                    errorCode = "OPERATION_ALREADY_EXECUTED";
+                } else if (errorMsg.contains("GOODS_STOCK_KEY_NOT_FOUND")) {
+                    errorCode = "GOODS_STOCK_KEY_NOT_FOUND";
+                }
+            }
+            
+            return new IRedisAdapter.StockDecreaseResult(null, null, false, errorCode);
         }
     }
 }

@@ -44,32 +44,19 @@ public class NormalGoodsOrderPreCancelListener extends AbstractStreamConsumer {
     @Bean
     Consumer<Message<MessageBody>> normalGoodsOrderPreCancel() {
         return msg -> {
-            try {
-                log.info("普通商品订单疑似取消消息-收到消息");
-                
-                // 1. 解析消息（参考 NFTurbo）
-                NormalGoodsOrderAggregate aggregate = getMessage(msg, NormalGoodsOrderAggregate.class);
-                String orderId = aggregate.getOrderId();
-                String userId = aggregate.getUserEntity().getUserId();
+            NormalGoodsOrderAggregate aggregate = getMessage(msg, NormalGoodsOrderAggregate.class);
+            String orderId = aggregate.getOrderId();
+            String userId = aggregate.getUserEntity().getUserId();
 
-                // 2. 查询订单状态
-                MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
-                
-                // 3. 如果订单已经创建成功（状态为 CONFIRM），则直接返回
-                if (order != null && TradeOrderStatusEnumVO.CONFIRM.equals(order.getTradeOrderStatusEnumVO())) {
-                    log.info("普通商品订单疑似取消消息-订单已确认，无需取消: orderId={}, status={}", 
-                            orderId, order.getTradeOrderStatusEnumVO());
-                    return;
-                }
+            // 查询订单状态
+            MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
 
-                // 4. 订单未确认，执行取消操作
-                doCancel(aggregate);
-
-                log.info("普通商品订单疑似取消消息-处理成功: orderId={}", orderId);
-            } catch (Exception e) {
-                log.error("普通商品订单疑似取消消息-处理失败", e);
-                throw new RuntimeException("普通商品订单疑似取消消息处理失败", e);
+            // 如果订单已经创建成功（状态为 CONFIRM），则直接返回。不再需要做废单处理了。
+            if (order != null && TradeOrderStatusEnumVO.CONFIRM.equals(order.getTradeOrderStatusEnumVO())) {
+                return;
             }
+
+            doCancel(aggregate);
         };
     }
 

@@ -74,4 +74,56 @@ public interface IRedisAdapter {
      * @return true-初始化成功，false-已存在
      */
     boolean initGoodsStock(Long activityId, String goodsId, Integer stockCount);
+
+    /**
+     * 原子操作：扣减商品库存 + 增加队伍人数
+     * 
+     * 对标 newBuyPlus：在同一个 Lua 脚本中同时执行商品库存扣减和队伍人数增加
+     * 
+     * @param goodsStockKey 商品库存 Key
+     * @param goodsStockLogKey 商品库存流水 Key
+     * @param teamStockKey 队伍库存 Key（可为null，表示不需要增加队伍人数）
+     * @param teamStockLogKey 队伍库存流水 Key（可为null）
+     * @param identifier 扣减标识
+     * @param goodsCount 商品扣减数量
+     * @param teamTargetCount 队伍目标人数（用于检查队伍是否已满）
+     * @return 返回结果对象，包含商品剩余库存和队伍当前人数
+     */
+    StockDecreaseResult decreaseGoodsStockAndIncreaseTeamStock(
+            String goodsStockKey, String goodsStockLogKey,
+            String teamStockKey, String teamStockLogKey,
+            String identifier, int goodsCount, int teamTargetCount);
+
+    /**
+     * 库存扣减结果
+     */
+    class StockDecreaseResult {
+        private Long goodsRemainingStock;  // 商品剩余库存
+        private Long teamCurrentCount;    // 队伍当前人数
+        private boolean success;          // 是否成功
+        private String errorCode;         // 错误码（如：TEAM_FULL, STOCK_NOT_ENOUGH等）
+
+        public StockDecreaseResult(Long goodsRemainingStock, Long teamCurrentCount, boolean success, String errorCode) {
+            this.goodsRemainingStock = goodsRemainingStock;
+            this.teamCurrentCount = teamCurrentCount;
+            this.success = success;
+            this.errorCode = errorCode;
+        }
+
+        public Long getGoodsRemainingStock() {
+            return goodsRemainingStock;
+        }
+
+        public Long getTeamCurrentCount() {
+            return teamCurrentCount;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getErrorCode() {
+            return errorCode;
+        }
+    }
 }

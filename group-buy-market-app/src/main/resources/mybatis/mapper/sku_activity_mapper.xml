@@ -42,6 +42,19 @@
           AND frozen_inventory >= #{quantity}
     </update>
 
+    <!-- TCC Try：冻结库存（增加冻结库存，不减少可售库存） -->
+    <!-- 对标 NFTurbo 的 freezeInventory -->
+    <update id="freezeInventory">
+        UPDATE sku_activity
+        SET frozen_inventory = frozen_inventory + #{quantity},
+            lock_version = lock_version + 1,
+            gmt_modified = now()
+        WHERE activity_id = #{activityId}
+          AND goods_id = #{goodsId}
+          AND lock_version = #{oldVersion}
+          AND saleable_inventory - frozen_inventory >= #{quantity}
+    </update>
+
     <!-- 查询SKU库存信息 -->
     <select id="querySkuActivity" resultMap="skuActivityMap">
         SELECT activity_id, goods_id, saleable_inventory, frozen_inventory, lock_version

@@ -22,18 +22,15 @@ import javax.annotation.Resource;
 /**
  * 普通商品订单创建本地事务监听器（Infrastructure层）
  * 
- * 对标 NFTurbo 的 OrderCreateTransactionListener（普通商品场景，但使用事务消息）
+ * ⚠️ 注意：此监听器目前未使用！
  * 
- * 本地事务执行：
- * 1. Redis 商品库存扣减
- * 2. Redis 队伍库存扣减（如果需要，即 teamId 不为空）
- * 3. 数据库商品库存扣减
- * 4. 订单创建（创建队伍，如果需要）
+ * 原因：普通商品使用的是 TCC 模式（NormalGoodsTradeService），不是事务消息模式。
+ * 此监听器是为事务消息模式设计的，但普通商品的实现选择了 TCC 模式。
  * 
- * ⚠️ 注意：虽然对标 normalBuy，但实现方式使用 RocketMQ 事务消息（类似 newBuyPlus）
- * 这样可以保证 Redis 扣减、数据库扣减、订单创建的一致性
+ * 如果将来需要将普通商品改为事务消息模式，可以使用此监听器。
  * 
  * @author liang.tian
+ * @deprecated 普通商品使用TCC模式，不使用事务消息，此监听器未使用
  */
 @Slf4j
 @Component

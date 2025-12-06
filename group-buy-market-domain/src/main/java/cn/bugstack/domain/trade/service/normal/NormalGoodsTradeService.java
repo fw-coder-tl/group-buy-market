@@ -1,6 +1,7 @@
 package cn.bugstack.domain.trade.service.normal;
 
 import cn.bugstack.domain.trade.adapter.port.IMessageProducer;
+import cn.bugstack.domain.trade.adapter.port.IRedisAdapter;
 import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.NormalGoodsOrderAggregate;
@@ -11,7 +12,6 @@ import cn.bugstack.types.utils.SnowflakeIdUtil;
 import cn.bugstack.wrench.design.framework.link.model2.chain.BusinessLinkedList;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -64,6 +64,16 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
     @Resource
     private IMessageProducer messageProducer;
 
+    @Resource
+    private IRedisAdapter redisAdapter;
+
+    // 商品库存 Redis 前缀
+    private static final String GOODS_STOCK_KEY_PREFIX = "group_buy_market_goods_stock_";
+    private static final String GOODS_STOCK_LOG_KEY_PREFIX = "group_buy_market_goods_stock_log_";
+    // 队伍库存 Redis 前缀
+    private static final String TEAM_STOCK_KEY_PREFIX = "group_buy_market_team_stock_key_";
+    private static final String TEAM_STOCK_LOG_KEY_PREFIX = "group_buy_market_team_stock_log_";
+
     @Override
     public MarketPayOrderEntity lockNormalGoodsOrder(UserEntity userEntity, PayActivityEntity payActivityEntity, PayDiscountEntity payDiscountEntity) throws Exception {
         log.info("普通商品下单-锁定订单: userId={}, activityId={}, goodsId={}, teamId={}", 
@@ -74,48 +84,75 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
                 TradeLockRuleCommandEntity.builder()
                         .activityId(payActivityEntity.getActivityId())
                         .userId(userEntity.getUserId())
-                        .teamId(payActivityEntity.getTeamId()) // 普通商品支持拼团，teamId 可能不为空
+                        .teamId(payActivityEntity.getTeamId())
                         .goodsId(payDiscountEntity.getGoodsId())
                         .build(),
                 new TradeLockRuleFilterFactory.DynamicContext()
         );
 
-        // 已参与拼团量 - 用于构建数据库唯一索引使用，确保用户只能在一个活动上参与固定的次数
         Integer userTakeOrderCount = tradeLockRuleFilterBackEntity.getUserTakeOrderCount();
-
-        // 队伍的目标量（拼团相关）
         Integer targetCount = tradeLockRuleFilterBackEntity.getTargetCount();
-
-        // 生成订单号（雪花算法）
         String orderId = SnowflakeIdUtil.nextIdStr();
 
-        // 2. 构建聚合对象（包含拼团相关字段）
+        // 2. 构建聚合对象
         NormalGoodsOrderAggregate normalGoodsOrderAggregate = NormalGoodsOrderAggregate.builder()
                 .userEntity(userEntity)
                 .payActivityEntity(payActivityEntity)
                 .payDiscountEntity(payDiscountEntity)
                 .userTakeOrderCount(userTakeOrderCount)
                 .orderId(orderId)
-                .teamId(payActivityEntity.getTeamId()) // 拼团相关
-                .targetCount(targetCount) // 拼团相关
+                .teamId(payActivityEntity.getTeamId())
+                .targetCount(targetCount)
                 .build();
 
         // 3. Try 阶段
         boolean isTrySuccess = true;
+        String teamId = payActivityEntity.getTeamId();
         try {
-            // 3.1 尝试扣减库存（Redis 预扣减，不扣减数据库）
-            boolean inventoryResult = skuRepository.tryDecreaseInventory(
-                    payActivityEntity.getActivityId(),
-                    payDiscountEntity.getGoodsId(),
-                    1,
-                    orderId,
-                    userEntity.getUserId()
+            // 3.1 尝试扣减库存（Redis 预扣减，同时增加队伍人数，不扣减数据库）
+            // 对标 newBuyPlus：在 Lua 脚本中同时扣减商品库存和增加队伍人数
+            String identifier = buildIdentifier(userEntity.getUserId(), orderId);
+            Long activityId = payActivityEntity.getActivityId();
+            String goodsId = payDiscountEntity.getGoodsId();
+            
+            String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
+            String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
+            
+            String teamStockKey = null;
+            String teamStockLogKey = null;
+            if (teamId != null && !teamId.trim().isEmpty() && targetCount != null && targetCount > 0) {
+                teamStockKey = TEAM_STOCK_KEY_PREFIX + activityId + "_" + teamId;
+                teamStockLogKey = TEAM_STOCK_LOG_KEY_PREFIX + activityId + "_" + teamId;
+            }
+            
+            // 使用新的原子操作：同时扣减商品库存和增加队伍人数
+            IRedisAdapter.StockDecreaseResult stockResult = redisAdapter.decreaseGoodsStockAndIncreaseTeamStock(
+                    goodsStockKey, goodsStockLogKey,
+                    teamStockKey, teamStockLogKey,
+                    identifier, 1, targetCount != null ? targetCount : 0
             );
-            Assert.isTrue(inventoryResult, "tryDecreaseInventory failed");
+            
+            if (!stockResult.isSuccess()) {
+                String errorCode = stockResult.getErrorCode();
+                if ("TEAM_FULL".equals(errorCode)) {
+                    log.warn("普通商品下单-Try阶段失败-队伍已满: orderId={}, teamId={}", orderId, teamId);
+                    throw new RuntimeException("队伍已满");
+                } else if ("GOODS_STOCK_NOT_ENOUGH".equals(errorCode)) {
+                    log.warn("普通商品下单-Try阶段失败-商品库存不足: orderId={}", orderId);
+                    throw new RuntimeException("商品库存不足");
+                } else {
+                    log.warn("普通商品下单-Try阶段失败-Redis扣减失败: orderId={}, errorCode={}", orderId, errorCode);
+                    throw new RuntimeException("Redis扣减失败: " + errorCode);
+                }
+            }
+            
+            log.info("普通商品下单-Try阶段-Redis扣减成功: orderId={}, 商品剩余库存={}, 队伍当前人数={}/{}",
+                    orderId, stockResult.getGoodsRemainingStock(), 
+                    stockResult.getTeamCurrentCount(), targetCount);
 
             // 3.2 尝试创建订单（状态为 TRY）
-            MarketPayOrderEntity tryOrderResult = repository.tryOrder(normalGoodsOrderAggregate);
-            Assert.notNull(tryOrderResult, "tryOrder failed");
+            boolean result = repository.tryOrder(normalGoodsOrderAggregate) != null;
+            Assert.isTrue(result, "tryOrder failed");
         } catch (Exception e) {
             isTrySuccess = false;
             log.error("普通商品下单-Try阶段失败: orderId={}, error={}", orderId, e.getMessage(), e);
@@ -123,9 +160,7 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
 
         // 4. Try 失败，发送【废单消息】，异步进行逆向补偿
         if (!isTrySuccess) {
-            // 回滚拼团库存（如果已扣减）
-            rollbackTeamStockIfNeeded(payActivityEntity, tradeLockRuleFilterBackEntity);
-            
+            // 消息监听：NormalGoodsOrderCancelListener
             messageProducer.sendMessage(
                     NORMAL_GOODS_ORDER_CANCEL_BINDING,
                     orderId,
@@ -138,21 +173,24 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
         boolean isConfirmSuccess = false;
         int retryConfirmCount = 0;
 
-        // 最大努力执行，失败最多尝试2次
+        // 最大努力执行，失败最多尝试2次（Dubbo也会有重试机制，在服务突然不可用、超时等情况下会重试2次）
         while (!isConfirmSuccess && retryConfirmCount < MAX_RETRY_TIMES) {
             try {
-                // 5.1 确认扣减库存（真正扣减数据库库存）
-                boolean confirmInventoryResult = skuRepository.confirmDecreaseInventory(
+                // 5.1 确认扣减库存（真正扣减数据库库存，同时增加队伍人数）
+                // 对标 newBuyPlus：在同一个事务中扣减商品库存和增加队伍人数
+                boolean result = skuRepository.decreaseSkuStockAndIncreaseTeamCount(
                         payActivityEntity.getActivityId(),
                         payDiscountEntity.getGoodsId(),
                         1,
-                        orderId
+                        teamId, // 如果teamId不为空，会在同一个事务中增加队伍人数
+                        orderId,
+                        userEntity.getUserId()
                 );
-                Assert.isTrue(confirmInventoryResult, "confirmDecreaseInventory failed");
+                Assert.isTrue(result, "decreaseSkuStockAndIncreaseTeamCount failed");
 
                 // 5.2 确认订单（将订单状态从 TRY 改为 CONFIRM）
-                boolean confirmOrderResult = repository.confirmOrder(orderId);
-                Assert.isTrue(confirmOrderResult, "confirmOrder failed");
+                result = repository.confirmOrder(orderId);
+                Assert.isTrue(result, "confirmOrder failed");
 
                 isConfirmSuccess = true;
             } catch (Exception e) {
@@ -165,9 +203,7 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
 
         // 6. Confirm 失败，发送【疑似废单消息】进行延迟检查
         if (!isConfirmSuccess) {
-            // 回滚拼团库存（如果已扣减）
-            rollbackTeamStockIfNeeded(payActivityEntity, tradeLockRuleFilterBackEntity);
-            
+            // 消息监听：NormalGoodsOrderPreCancelListener
             messageProducer.sendDelayMessage(
                     NORMAL_GOODS_ORDER_PRE_CANCEL_BINDING,
                     orderId,
@@ -189,27 +225,10 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
     }
 
     /**
-     * 回滚拼团库存（如果需要）
-     * 
-     * 在Try失败或Confirm失败时调用，回滚在责任链中已扣减的拼团库存
+     * 构建库存扣减标识符
      */
-    private void rollbackTeamStockIfNeeded(PayActivityEntity payActivityEntity, TradeLockRuleFilterBackEntity tradeLockRuleFilterBackEntity) {
-        try {
-            String teamId = payActivityEntity.getTeamId();
-            String recoveryTeamStockKey = tradeLockRuleFilterBackEntity != null ? tradeLockRuleFilterBackEntity.getRecoveryTeamStockKey() : null;
-            Integer validTime = payActivityEntity.getValidTime();
-
-            // 只有在teamId不为空且recoveryTeamStockKey不为空时，才需要回滚拼团库存
-            // 因为teamId为空时，TeamStockOccupyRuleFilter不会扣减拼团库存
-            if (StringUtils.isNotBlank(teamId) && StringUtils.isNotBlank(recoveryTeamStockKey) && validTime != null) {
-                repository.recoveryTeamStock(recoveryTeamStockKey, validTime);
-                log.info("普通商品下单-回滚拼团库存成功: teamId={}, recoveryTeamStockKey={}", teamId, recoveryTeamStockKey);
-            } else {
-                log.debug("普通商品下单-无需回滚拼团库存: teamId={}, recoveryTeamStockKey={}", teamId, recoveryTeamStockKey);
-            }
-        } catch (Exception e) {
-            log.error("普通商品下单-回滚拼团库存失败: teamId={}", payActivityEntity.getTeamId(), e);
-            // 不回滚失败不影响主流程，只记录日志
-        }
+    private String buildIdentifier(String userId, String orderId) {
+        return "DECREASE_" + userId + "_" + orderId;
     }
+
 }
