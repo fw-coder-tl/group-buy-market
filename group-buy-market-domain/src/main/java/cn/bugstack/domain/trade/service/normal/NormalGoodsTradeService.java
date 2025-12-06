@@ -94,7 +94,7 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
         Integer targetCount = tradeLockRuleFilterBackEntity.getTargetCount();
         String orderId = SnowflakeIdUtil.nextIdStr();
 
-        // 2. 构建聚合对象
+        // 2. 构建聚合对象（初始时 Redis 未扣减）
         NormalGoodsOrderAggregate normalGoodsOrderAggregate = NormalGoodsOrderAggregate.builder()
                 .userEntity(userEntity)
                 .payActivityEntity(payActivityEntity)
@@ -103,23 +103,31 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
                 .orderId(orderId)
                 .teamId(payActivityEntity.getTeamId())
                 .targetCount(targetCount)
+                .redisStockDecreased(false) // 初始为 false
                 .build();
 
         // 3. Try 阶段
         boolean isTrySuccess = true;
         String teamId = payActivityEntity.getTeamId();
+        boolean redisStockDecreased = false; // 标记 Redis 是否已扣减
+        String identifier = null;
+        String goodsStockKey = null;
+        String goodsStockLogKey = null;
+        String teamStockKey = null;
+        String teamStockLogKey = null;
+        Long activityId = null;
+        String goodsId = null;
+        
         try {
             // 3.1 尝试扣减库存（Redis 预扣减，同时增加队伍人数，不扣减数据库）
             // 对标 newBuyPlus：在 Lua 脚本中同时扣减商品库存和增加队伍人数
-            String identifier = buildIdentifier(userEntity.getUserId(), orderId);
-            Long activityId = payActivityEntity.getActivityId();
-            String goodsId = payDiscountEntity.getGoodsId();
+            identifier = buildIdentifier(userEntity.getUserId(), orderId);
+            activityId = payActivityEntity.getActivityId();
+            goodsId = payDiscountEntity.getGoodsId();
             
-            String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
-            String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
+            goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
+            goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
             
-            String teamStockKey = null;
-            String teamStockLogKey = null;
             if (teamId != null && !teamId.trim().isEmpty() && targetCount != null && targetCount > 0) {
                 teamStockKey = TEAM_STOCK_KEY_PREFIX + activityId + "_" + teamId;
                 teamStockLogKey = TEAM_STOCK_LOG_KEY_PREFIX + activityId + "_" + teamId;
@@ -146,16 +154,29 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
                 }
             }
             
+            redisStockDecreased = true; // 标记 Redis 已扣减
+            Long redisTeamCurrentCount = stockResult.getTeamCurrentCount();
             log.info("普通商品下单-Try阶段-Redis扣减成功: orderId={}, 商品剩余库存={}, 队伍当前人数={}/{}",
                     orderId, stockResult.getGoodsRemainingStock(), 
-                    stockResult.getTeamCurrentCount(), targetCount);
+                    redisTeamCurrentCount, targetCount);
 
             // 3.2 尝试创建订单（状态为 TRY）
+            // 注意：如果 Redis 已经扣减成功，说明队伍确实还有空间，应该允许数据库更新
+            // 设置标记，让 tryOrder 知道 Redis 已扣减成功，可以使用强制更新
+            // 同时传递 Redis 的队伍当前人数，用于验证是否超过目标人数
+            normalGoodsOrderAggregate.setRedisStockDecreased(true);
+            normalGoodsOrderAggregate.setRedisTeamCurrentCount(redisTeamCurrentCount);
             boolean result = repository.tryOrder(normalGoodsOrderAggregate) != null;
             Assert.isTrue(result, "tryOrder failed");
         } catch (Exception e) {
             isTrySuccess = false;
             log.error("普通商品下单-Try阶段失败: orderId={}, error={}", orderId, e.getMessage(), e);
+            
+            // 如果 Redis 已扣减但数据库更新失败，需要回滚 Redis
+            if (redisStockDecreased) {
+                log.warn("普通商品下单-Try阶段失败，回滚Redis库存: orderId={}", orderId);
+                rollbackRedisStock(goodsStockKey, goodsStockLogKey, teamStockKey, teamStockLogKey, identifier, orderId);
+            }
         }
 
         // 4. Try 失败，发送【废单消息】，异步进行逆向补偿
@@ -176,17 +197,16 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
         // 最大努力执行，失败最多尝试2次（Dubbo也会有重试机制，在服务突然不可用、超时等情况下会重试2次）
         while (!isConfirmSuccess && retryConfirmCount < MAX_RETRY_TIMES) {
             try {
-                // 5.1 确认扣减库存（真正扣减数据库库存，同时增加队伍人数）
-                // 对标 newBuyPlus：在同一个事务中扣减商品库存和增加队伍人数
-                boolean result = skuRepository.decreaseSkuStockAndIncreaseTeamCount(
+                // 5.1 确认扣减库存（真正扣减数据库库存）
+                // 注意：队伍人数在 Try 阶段已经增加了（在 tryOrder 中），所以 Confirm 阶段只需要扣减商品库存
+                boolean result = skuRepository.decreaseSkuStock(
                         payActivityEntity.getActivityId(),
                         payDiscountEntity.getGoodsId(),
                         1,
-                        teamId, // 如果teamId不为空，会在同一个事务中增加队伍人数
                         orderId,
                         userEntity.getUserId()
                 );
-                Assert.isTrue(result, "decreaseSkuStockAndIncreaseTeamCount failed");
+                Assert.isTrue(result, "decreaseSkuStock failed");
 
                 // 5.2 确认订单（将订单状态从 TRY 改为 CONFIRM）
                 result = repository.confirmOrder(orderId);
@@ -229,6 +249,48 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
      */
     private String buildIdentifier(String userId, String orderId) {
         return "DECREASE_" + userId + "_" + orderId;
+    }
+
+    /**
+     * 回滚 Redis 库存（商品库存 + 队伍库存）
+     */
+    private void rollbackRedisStock(String goodsStockKey, String goodsStockLogKey,
+                                    String teamStockKey, String teamStockLogKey,
+                                    String identifier, String orderId) {
+        try {
+            // 回滚商品库存
+            if (goodsStockKey != null && goodsStockLogKey != null) {
+                String rollbackIdentifier = "ROLLBACK_" + identifier;
+                Long rollbackResult = redisAdapter.increaseStockWithLog(
+                        goodsStockKey,
+                        goodsStockLogKey,
+                        rollbackIdentifier,
+                        1
+                );
+                log.info("普通商品下单-回滚商品库存成功: orderId={}, 回滚后库存={}", orderId, rollbackResult);
+            }
+            
+            // 回滚队伍库存（队伍库存的扣减实际上是 +1，所以回滚是 -1）
+            if (teamStockKey != null && teamStockLogKey != null) {
+                String rollbackIdentifier = "ROLLBACK_" + identifier;
+                // 队伍库存的扣减是 +1（增加队伍人数），所以回滚是 -1（减少队伍人数）
+                Long rollbackResult = redisAdapter.decreaseStockWithLog(
+                        teamStockKey,
+                        teamStockLogKey,
+                        rollbackIdentifier,
+                        1
+                );
+                if (rollbackResult != null && rollbackResult >= 0) {
+                    log.info("普通商品下单-回滚队伍库存成功: orderId={}, teamStockKey={}, 回滚后人数={}", 
+                            orderId, teamStockKey, rollbackResult);
+                } else {
+                    log.warn("普通商品下单-回滚队伍库存失败-库存不足或已为0: orderId={}, teamStockKey={}, result={}", 
+                            orderId, teamStockKey, rollbackResult);
+                }
+            }
+        } catch (Exception e) {
+            log.error("普通商品下单-回滚Redis库存失败: orderId={}", orderId, e);
+        }
     }
 
 }

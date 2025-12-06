@@ -425,10 +425,40 @@ public class TradeRepository implements ITradeRepository {
             // 写入记录
             groupBuyOrderDao.insert(groupBuyOrder);
         } else {
-            // 更新记录 - 如果更新记录不等于1，则表示拼团已满，抛出异常
+            // 更新记录 - 如果更新记录不等于1，则表示拼团已满
             int updateAddTargetCount = groupBuyOrderDao.updateAddLockCount(teamId);
             if (1 != updateAddTargetCount) {
-                throw new AppException(ResponseCode.E0005);
+                // 如果 Redis 已经扣减成功，说明队伍确实还有空间，使用强制更新
+                // 但是需要验证 Redis 的队伍人数是否已经达到或超过目标人数，防止超卖
+                if (normalGoodsOrderAggregate.getRedisStockDecreased() != null && 
+                    normalGoodsOrderAggregate.getRedisStockDecreased()) {
+                    
+                    // 获取目标人数
+                    Integer targetCount = normalGoodsOrderAggregate.getTargetCount();
+                    Long redisTeamCurrentCount = normalGoodsOrderAggregate.getRedisTeamCurrentCount();
+                    
+                    // 验证：如果 Redis 的队伍人数已经达到或超过目标人数，不允许强制更新
+                    if (targetCount != null && redisTeamCurrentCount != null && 
+                        redisTeamCurrentCount >= targetCount) {
+                        log.error("普通商品下单-Try阶段-队伍已满，不允许强制更新: teamId={}, orderId={}, Redis队伍人数={}, 目标人数={}", 
+                                teamId, normalGoodsOrderAggregate.getOrderId(), redisTeamCurrentCount, targetCount);
+                        throw new AppException(ResponseCode.E0005);
+                    }
+                    
+                    log.warn("普通商品下单-Try阶段-数据库显示队伍已满，但Redis已扣减成功且未满，使用强制更新: teamId={}, orderId={}, Redis队伍人数={}, 目标人数={}", 
+                            teamId, normalGoodsOrderAggregate.getOrderId(), redisTeamCurrentCount, targetCount);
+                    updateAddTargetCount = groupBuyOrderDao.updateAddLockCountForce(teamId);
+                    if (1 != updateAddTargetCount) {
+                        log.error("普通商品下单-Try阶段-强制更新队伍人数失败: teamId={}, orderId={}", 
+                                teamId, normalGoodsOrderAggregate.getOrderId());
+                        throw new AppException(ResponseCode.E0005);
+                    }
+                    log.info("普通商品下单-Try阶段-强制更新队伍人数成功: teamId={}, orderId={}", 
+                            teamId, normalGoodsOrderAggregate.getOrderId());
+                } else {
+                    // Redis 未扣减成功，正常抛出异常
+                    throw new AppException(ResponseCode.E0005);
+                }
             }
         }
 

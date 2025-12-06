@@ -377,12 +377,21 @@ public class SkuRepository implements ISkuRepository {
                     if (teamId != null && !teamId.trim().isEmpty()) {
                         int updateAddTargetCount = groupBuyOrderDao.updateAddLockCount(teamId);
                         if (updateAddTargetCount != 1) {
-                            // 队伍已满或不存在，回滚事务
-                            log.warn("原子操作-增加队伍人数失败（队伍已满或不存在）: teamId={}, orderId={}, updateCount={}",
-                                    teamId, orderId, updateAddTargetCount);
-                            throw new RuntimeException("队伍已满或不存在");
+                            // 如果数据库显示队伍已满，但 Try 阶段已经成功（Redis 已扣减），使用强制更新
+                            // 因为 Confirm 阶段是在 Try 阶段成功之后执行的，所以 Redis 已经扣减成功
+                            log.warn("原子操作-数据库显示队伍已满，但Try阶段已成功（Redis已扣减），使用强制更新: teamId={}, orderId={}",
+                                    teamId, orderId);
+                            updateAddTargetCount = groupBuyOrderDao.updateAddLockCountForce(teamId);
+                            if (updateAddTargetCount != 1) {
+                                // 强制更新也失败，回滚事务
+                                log.error("原子操作-强制更新队伍人数失败: teamId={}, orderId={}, updateCount={}",
+                                        teamId, orderId, updateAddTargetCount);
+                                throw new RuntimeException("队伍已满或不存在");
+                            }
+                            log.info("原子操作-强制更新队伍人数成功: teamId={}, orderId={}", teamId, orderId);
+                        } else {
+                            log.info("原子操作-增加队伍人数成功: teamId={}, orderId={}", teamId, orderId);
                         }
-                        log.info("原子操作-增加队伍人数成功: teamId={}, orderId={}", teamId, orderId);
                     }
 
                     log.info("原子操作-扣减SKU库存并增加队伍人数成功: orderId={}, activityId={}, goodsId={}, " +

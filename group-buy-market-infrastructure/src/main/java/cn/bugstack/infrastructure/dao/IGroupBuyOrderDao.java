@@ -20,6 +20,17 @@ public interface IGroupBuyOrderDao {
 
     int updateAddLockCount(String teamId);
 
+    /**
+     * 强制增加队伍锁单数量（即使队伍已满也允许更新）
+     * 
+     * 用于 Redis 已扣减成功但数据库显示已满的场景
+     * 因为 Redis 是权威数据源，如果 Redis 已经扣减成功，说明队伍确实还有空间
+     * 
+     * @param teamId 队伍ID
+     * @return 更新行数
+     */
+    int updateAddLockCountForce(String teamId);
+
     int updateSubtractionLockCount(String teamId);
 
     GroupBuyOrder queryGroupBuyProgress(String teamId);

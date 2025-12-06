@@ -47,5 +47,11 @@ public class NormalGoodsOrderAggregate {
     
     /** 队伍目标人数（拼团相关） */
     private Integer targetCount;
+    
+    /** Redis 库存是否已扣减成功（用于决定是否使用强制更新数据库） */
+    private Boolean redisStockDecreased;
+    
+    /** Redis 扣减后的队伍当前人数（用于验证是否超过目标人数） */
+    private Long redisTeamCurrentCount;
 }
 
