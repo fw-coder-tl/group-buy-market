@@ -1,4 +1,4 @@
-package cn.bugstack.domain.trade.service.normal;
+package cn.bugstack.domain.trade.service;
 
 import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
 import cn.bugstack.domain.trade.model.entity.PayActivityEntity;

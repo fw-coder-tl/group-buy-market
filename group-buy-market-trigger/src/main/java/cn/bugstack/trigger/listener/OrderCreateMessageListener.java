@@ -1,5 +1,6 @@
 package cn.bugstack.trigger.listener;
 
+import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.GroupBuyOrderAggregate;
 import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
@@ -33,6 +34,9 @@ public class OrderCreateMessageListener extends AbstractStreamConsumer {
 
     @Resource
     private ITradeRepository tradeRepository;
+    
+    @Resource
+    private ISkuRepository skuRepository;
 
     @Bean
     Consumer<Message<MessageBody>> orderCreate() {
@@ -49,14 +53,28 @@ public class OrderCreateMessageListener extends AbstractStreamConsumer {
 
                 log.info("消费订单创建消息: orderId={}", orderId);
 
-                // ⭐ 改造：由于订单已在本地事务中创建，这里主要用于幂等性检查和补偿
+                // ⭐ 参考 NFTurbo：由于订单已在本地事务中创建，这里主要用于幂等性检查和补偿
                 // 1. 查询订单是否存在（幂等性检查）
                 MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
                 
                 if (order != null) {
-                    // 订单已存在，说明本地事务已成功，直接返回（幂等性）
-                    log.info("订单已存在（幂等），跳过处理: orderId={}, status={}", 
+                    // 订单已存在，说明本地事务已成功
+                    log.info("订单已存在（幂等），执行数据库库存扣减补偿: orderId={}, status={}", 
                             orderId, order.getTradeOrderStatusEnumVO());
+                    
+                    // ⭐ 参考 NFTurbo：如果订单已创建，扣减数据库库存（补偿）
+                    // 因为本地事务中只扣减了 Redis 库存，没有扣减数据库库存，所以需要在这里补偿
+                    Long activityId = aggregate.getPayActivityEntity().getActivityId();
+                    String goodsId = aggregate.getPayDiscountEntity().getGoodsId();
+                    
+                    // 扣减数据库库存（带幂等性检查，如果已扣减过会直接返回成功）
+                    boolean decreaseResult = skuRepository.decreaseSkuStock(activityId, goodsId, 1, orderId, userId);
+                    if (!decreaseResult) {
+                        log.warn("订单创建消息-数据库库存扣减补偿失败（可能已扣减）: orderId={}", orderId);
+                    } else {
+                        log.info("订单创建消息-数据库库存扣减补偿成功: orderId={}", orderId);
+                    }
+                    
                     return;
                 }
 

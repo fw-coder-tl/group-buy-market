@@ -35,9 +35,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -103,7 +100,15 @@ public class TradeRepository implements ITradeRepository {
         
         // 2. 如果热数据表不存在，再查归档表（冷热分离）
         if (null == groupBuyOrderListRes) {
+            try {
             groupBuyOrderListRes = groupBuyOrderListDao.queryGroupBuyOrderRecordByOrderIdFromArchive(groupBuyOrderListReq);
+            } catch (Exception e) {
+                // 归档表可能不存在，记录日志但不抛出异常
+                log.warn("查询归档表失败（表可能不存在）: orderId={}, userId={}, error={}", 
+                        orderId, userId, e.getMessage());
+                // 返回 null，表示订单不存在
+                return null;
+            }
         }
         
         if (null == groupBuyOrderListRes) return null;
@@ -222,10 +227,19 @@ public class TradeRepository implements ITradeRepository {
         UserEntity userEntity = hotGoodsOrderAggregate.getUserEntity();
         PayActivityEntity payActivityEntity = hotGoodsOrderAggregate.getPayActivityEntity();
         PayDiscountEntity payDiscountEntity = hotGoodsOrderAggregate.getPayDiscountEntity();
+        
+        // 优化：如果 userTakeOrderCount 为 null，在订单创建时查询（减少本地事务IO操作）
         Integer userTakeOrderCount = hotGoodsOrderAggregate.getUserTakeOrderCount();
+        if (userTakeOrderCount == null) {
+            // 查询用户在一个拼团活动上参与的次数（用于构建数据库唯一索引）
+            userTakeOrderCount = queryOrderCountByActivityId(payActivityEntity.getActivityId(), userEntity.getUserId());
+            log.info("订单创建时查询用户参与次数: activityId={}, userId={}, userTakeOrderCount={}", 
+                    payActivityEntity.getActivityId(), userEntity.getUserId(), userTakeOrderCount);
+        }
 
-        // ⭐ 热点商品不做拼团，生成虚拟 teamId（用于兼容现有数据结构）
-        String teamId = "HOT_GOODS_" + RandomStringUtils.randomNumeric(8);
+        // 热点商品不做拼团，生成虚拟 teamId（用于兼容现有数据结构）
+        // 注意：team_id 字段是 varchar(8)，所以使用 "HG" + 6位数字 = 8个字符
+        String teamId = "HG" + RandomStringUtils.randomNumeric(6);
 
         // 日期处理
         Date currentDate = new Date();

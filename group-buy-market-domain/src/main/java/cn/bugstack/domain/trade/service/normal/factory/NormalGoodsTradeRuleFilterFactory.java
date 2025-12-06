@@ -36,7 +36,7 @@ public class NormalGoodsTradeRuleFilterFactory {
             TeamStockOccupyRuleFilter teamStockOccupyRuleFilter
     ) {
         // 组装链
-        // ⚠️ 注意：直接使用 TradeLockRuleFilterFactory.DynamicContext
+        // 注意：直接使用 TradeLockRuleFilterFactory.DynamicContext
         // 因为 TeamStockOccupyRuleFilter 使用的是 TradeLockRuleFilterFactory.DynamicContext
         LinkArmory<TradeLockRuleCommandEntity, TradeLockRuleFilterFactory.DynamicContext, TradeLockRuleFilterBackEntity> linkArmory =
                 new LinkArmory<>("普通商品交易规则过滤链",

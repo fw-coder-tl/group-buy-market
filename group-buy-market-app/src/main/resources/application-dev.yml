@@ -74,7 +74,10 @@ spring:
   # 注意：function.definition 只需要定义 Consumer（in-0），Producer（out-0）不需要定义
   cloud:
     function:
-      definition: orderCreate;hotGoodsOrderCancel;normalGoodsOrderCancel;hotGoodsOrderPreCancel;normalGoodsOrderPreCancel
+      # 参考 NFTurbo：正常流程需要消息监听器，批量消费消息并异步扣减数据库库存
+      # 正常流程：hotGoodsOrderCreate 监听器处理订单创建成功消息，异步扣减数据库库存
+      # 异常流程：hotGoodsOrderPreCancel 监听器处理延迟检查消息
+      definition: orderCreate;hotGoodsOrderCreate;hotGoodsOrderCancel;normalGoodsOrderCancel;hotGoodsOrderPreCancel;normalGoodsOrderPreCancel
     stream:
       rocketmq:
         bindings:
@@ -94,11 +97,19 @@ spring:
               producerType: Trans
               transactionListener: orderCreateTransactionListener
       bindings:
-        # 热点商品订单创建（事务消息）
+        # 热点商品订单创建（事务消息 - Producer）
         hotGoodsOrderCreate-out-0:
           content-type: application/json
           destination: hotGoodsOrderCreate-out-0
           group: hot-goods-group
+          binder: rocketmq
+        # 热点商品订单创建（事务消息 - Consumer）
+        # 参考 NFTurbo：正常流程需要消息监听器，批量消费消息并异步扣减数据库库存
+        # 注意：代码已兼容单个消息和批量消息，如果批量消费不生效，代码会自动将单个消息包装成 List 处理
+        hotGoodsOrderCreate-in-0:
+          content-type: application/json
+          destination: hotGoodsOrderCreate-out-0
+          group: hot-goods-create-group
           binder: rocketmq
         # 普通商品订单创建（事务消息）
         normalGoodsOrderCreate-out-0:
@@ -124,7 +135,13 @@ spring:
           destination: normalGoodsOrderCancel
           group: normal-goods-cancel-group
           binder: rocketmq
-        # 热点商品订单疑似取消（延迟消息）
+        # 热点商品订单疑似取消（延迟消息 - Producer）
+        hotGoodsOrderPreCancel-out-0:
+          content-type: application/json
+          destination: hotGoodsOrderPreCancel
+          group: hot-goods-pre-cancel-group
+          binder: rocketmq
+        # 热点商品订单疑似取消（延迟消息 - Consumer）
         hotGoodsOrderPreCancel-in-0:
           content-type: application/json
           destination: hotGoodsOrderPreCancel

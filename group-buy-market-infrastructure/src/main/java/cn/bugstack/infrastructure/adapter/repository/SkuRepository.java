@@ -70,7 +70,7 @@ public class SkuRepository implements ISkuRepository {
 
                 if (updateCount > 0) {
                     // 3.2 插入扣减流水（唯一索引保证幂等）
-                    // ⭐ TCC模型：下单时只增加冻结库存，可售库存不变
+                    // TCC模型：下单时只增加冻结库存，可售库存不变
                     // afterSaleable = beforeSaleable（不是 beforeSaleable - quantity）
                     InventoryDeductionLog logEntry = InventoryDeductionLog.builder()
                             .orderId(orderId)
@@ -79,7 +79,7 @@ public class SkuRepository implements ISkuRepository {
                             .goodsId(goodsId)
                             .quantity(quantity)
                             .beforeSaleable(beforeSaleable)
-                            .afterSaleable(beforeSaleable) // ⭐ 修复：TCC模型，下单时可售库存不变
+                            .afterSaleable(beforeSaleable) // 修复：TCC模型，下单时可售库存不变
                             .beforeFrozen(beforeFrozen)
                             .afterFrozen(beforeFrozen + quantity)
                             .lockVersion(lockVersion)

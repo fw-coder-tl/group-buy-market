@@ -15,7 +15,7 @@ import cn.bugstack.domain.trade.service.ITradeRefundOrderService;
 import cn.bugstack.domain.trade.service.ITradeSettlementOrderService;
 import cn.bugstack.domain.trade.service.detector.IHotKeyDetector;
 import cn.bugstack.domain.trade.service.IHotGoodsTradeService;
-import cn.bugstack.domain.trade.service.normal.INormalGoodsTradeService;
+import cn.bugstack.domain.trade.service.INormalGoodsTradeService;
 import cn.bugstack.types.enums.ResponseCode;
 import cn.bugstack.types.exception.AppException;
 import com.alibaba.fastjson.JSON;
@@ -58,7 +58,14 @@ public class MarketTradeController implements IMarketTradeService {
 
     /**
      * 拼团营销锁单
+     * 
+     * @deprecated 已废弃，请使用以下接口：
+     * - 热点商品：/api/v1/gbm/trade/hot-goods/lock_order
+     * - 普通商品：/api/v1/gbm/trade/normal-goods/lock_order
+     * 
+     * 此接口保留用于兼容，内部会根据 hotkey 自动路由到对应的服务
      */
+    @Deprecated
     @RequestMapping(value = "lock_market_pay_order", method = RequestMethod.POST)
     @Override
     public Response<LockMarketPayOrderResponseDTO> lockMarketPayOrder(@RequestBody LockMarketPayOrderRequestDTO requestDTO) {
@@ -83,12 +90,13 @@ public class MarketTradeController implements IMarketTradeService {
             }
 
             // 根据 hotkey 判断商品类型（提前判断，用于后续逻辑）
-            boolean isHotGoods = hotKeyDetector.isHotGoods(activityId, goodsId);
+            //boolean isHotGoods = hotKeyDetector.isHotGoods(activityId, goodsId);
+            Boolean isHotGoods = true;
 
             // 查询 outTradeNo 是否已经存在交易记录
             // todo (可以选择redis进行快速查询，避免数据库查询)
 
-            // ⚠️ 注意：拼团是否已满的检查已在以下位置自动完成，无需提前查询数据库：
+            // 注意：拼团是否已满的检查已在以下位置自动完成，无需提前查询数据库：
             // 1. Redis层：TeamStockOccupyRuleFilter 会检查 Redis 队伍库存，如果已满会抛出 E0008
             // 2. 数据库层：TradeRepository.updateAddLockCount 会检查数据库，如果已满会抛出 E0005
             // 3. 异常会被 catch (AppException e) 捕获并返回给前端
@@ -115,8 +123,11 @@ public class MarketTradeController implements IMarketTradeService {
 
             // 构建实体对象
             UserEntity userEntity = UserEntity.builder().userId(userId).build();
+            // 热点商品不做拼团，teamId 设置为 null（避免空字符串导致数据库字段长度问题）
+            // 注意：热点商品的 teamId 会在 lockHotGoodsOrder 方法中生成虚拟 teamId
+            String finalTeamId = isHotGoods ? null : (StringUtils.isBlank(teamId) ? null : teamId);
             PayActivityEntity payActivityEntity = PayActivityEntity.builder()
-                    .teamId(teamId)
+                    .teamId(finalTeamId)
                     .activityId(activityId)
                     .activityName(groupBuyActivityDiscountVO.getActivityName())
                     .startTime(groupBuyActivityDiscountVO.getStartTime())

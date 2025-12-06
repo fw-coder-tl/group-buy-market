@@ -5,6 +5,7 @@ import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.NormalGoodsOrderAggregate;
 import cn.bugstack.domain.trade.model.entity.*;
+import cn.bugstack.domain.trade.service.INormalGoodsTradeService;
 import cn.bugstack.domain.trade.service.lock.factory.TradeLockRuleFilterFactory;
 import cn.bugstack.types.utils.SnowflakeIdUtil;
 import cn.bugstack.wrench.design.framework.link.model2.chain.BusinessLinkedList;

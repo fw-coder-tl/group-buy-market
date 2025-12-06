@@ -1,17 +1,13 @@
 package cn.bugstack.infrastructure.mq.listener;
 
+import cn.bugstack.domain.trade.adapter.port.IMessageProducer;
 import cn.bugstack.domain.trade.adapter.port.IRedisAdapter;
-import cn.bugstack.domain.trade.adapter.repository.ISkuRepository;
 import cn.bugstack.domain.trade.adapter.repository.ITradeRepository;
 import cn.bugstack.domain.trade.model.aggregate.HotGoodsOrderAggregate;
 import cn.bugstack.domain.trade.model.entity.MarketPayOrderEntity;
-import cn.bugstack.domain.trade.model.entity.TradeLockRuleCommandEntity;
-import cn.bugstack.domain.trade.model.entity.TradeLockRuleFilterBackEntity;
 import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
-import cn.bugstack.domain.trade.service.lock.factory.TradeLockRuleFilterFactory;
 import cn.bugstack.infrastructure.mq.param.MessageBody;
-import cn.bugstack.types.exception.AppException;
-import cn.bugstack.wrench.design.framework.link.model2.chain.BusinessLinkedList;
+import cn.bugstack.infrastructure.mq.producer.StreamProducer;
 import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.LocalTransactionState;
@@ -28,14 +24,26 @@ import javax.annotation.Resource;
  * 参考 NFTurbo 的 OrderCreateTransactionListener（newBuyPlus 场景）
  * 使用 Spring Cloud Stream + RocketMQ 的 TransactionListener 接口
  * 
- * 本地事务执行：
- * 1. Redis 商品库存扣减
- * 2. 数据库商品库存扣减
- * 3. 订单创建（不创建队伍，不做拼团）
+ * 本地事务执行（参考 NFTurbo TradeApplicationService.newBuyPlus）：
+ * 1. Redis 商品库存扣减（1次Redis操作）
+ *    - 扣减失败时，查询流水检查是否真的失败
+ *    - 如果流水存在，说明扣减成功（可能是网络延迟导致的假失败），继续执行
+ *    - 如果流水不存在，说明真的扣减失败，回滚事务
+ * 2. 订单创建（1次DB插入，创建时查询userTakeOrderCount）
+ *    - 创建失败时，直接发送延迟消息，不查询数据库
+ *    - 原因：可能存在"假失败"情况（订单实际已创建，但返回时网络超时/数据库异常）
+ *    - 延迟消息会在30秒后再次检查订单状态，如果订单存在则补偿，不存在则回滚
+ *
+ * 不在本地事务中执行：
+ * - 责任链校验（活动有效性、用户参与次数等）- 移至消息监听器
+ * - 数据库库存扣减 - 移至消息监听器异步扣减（参考 NFTurbo：setSyncDecreaseInventory(false)）
+ * - 队伍库存扣减 - 热点商品不做拼团
+ * - 队伍创建 - 热点商品不做拼团
  * 
- * ⚠️ 不做：
- * - 队伍库存扣减
- * - 队伍创建
+ * 重要说明：
+ * - 参考 NFTurbo：本地事务中不扣减数据库库存，减少本地事务时间
+ * - 数据库库存扣减在消息监听器（HotGoodsOrderCreateMessageListener）中异步执行
+ * - 这样可以避免消息堆积，因为消息会被正常消费
  * 
  * @author liang.tian
  */
@@ -51,21 +59,14 @@ public class HotGoodsOrderCreateTransactionListener implements TransactionListen
     private IRedisAdapter redisAdapter;
 
     @Resource
-    private ISkuRepository skuRepository;
-
-    @Resource
     private ITradeRepository tradeRepository;
-
-    // 优化：在本地事务中执行交易规则过滤，减少数据库查询压力
-    // 这样可以先通过 Redis 和 MQ 进行流量拦截
-    @Resource(name = "hotGoodsTradeRuleFilter")
-    private BusinessLinkedList<TradeLockRuleCommandEntity, TradeLockRuleFilterFactory.DynamicContext, TradeLockRuleFilterBackEntity> hotGoodsTradeRuleFilter;
+    
+    @Resource
+    private IMessageProducer messageProducer;
 
     @Override
     public LocalTransactionState executeLocalTransaction(Message message, Object o) {
         HotGoodsOrderAggregate aggregate = null;
-        boolean goodsStockDecreased = false;
-        boolean dbStockDecreased = false;
         
         try {
             // 从 message body 中解析参数（参考 NFTurbo）
@@ -76,101 +77,84 @@ public class HotGoodsOrderCreateTransactionListener implements TransactionListen
             Long activityId = aggregate.getPayActivityEntity().getActivityId();
             String goodsId = aggregate.getPayDiscountEntity().getGoodsId();
 
-            // 优化：在本地事务中执行交易规则过滤（活动有效性、用户参与次数等）
-            // 这样可以先通过 Redis 和 MQ 进行流量拦截，减少数据库连接数和 CPU 压力
-            TradeLockRuleFilterBackEntity tradeLockRuleFilterBackEntity = hotGoodsTradeRuleFilter.apply(
-                    TradeLockRuleCommandEntity.builder()
-                            .activityId(activityId)
-                            .userId(userId)
-                            .teamId(null) // 热点商品不做拼团，teamId 为 null
-                            .goodsId(goodsId)
-                            .build(),
-                    new TradeLockRuleFilterFactory.DynamicContext()
-            );
-
-            // 获取用户参与次数（用于构建数据库唯一索引）
-            Integer userTakeOrderCount = tradeLockRuleFilterBackEntity.getUserTakeOrderCount();
-            // 更新聚合对象中的 userTakeOrderCount
-            aggregate.setUserTakeOrderCount(userTakeOrderCount);
+            // 优化：移除责任链校验，减少本地事务IO操作（从3次减少到2次）
+            // 责任链校验（活动有效性、用户参与次数等）将在消息监听器中执行
+            // userTakeOrderCount 将在订单创建时查询（TradeRepository.lockHotGoodsOrder）
 
             String identifier = buildIdentifier(userId, orderId);
-
-            // 1. 扣减商品库存（Redis 预扣减）
             String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
             String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
 
-            Long goodsStockResult = redisAdapter.decreaseStockWithLog(goodsStockKey, goodsStockLogKey, identifier, 1);
-            if (goodsStockResult == null || goodsStockResult < 0) {
-                log.warn("热点商品-事务预扣减商品库存失败: activityId={}, goodsId={}, orderId={}", activityId, goodsId, orderId);
-                return LocalTransactionState.ROLLBACK_MESSAGE;
+            // 1. 扣减Redis库存（参考 NFTurbo TradeApplicationService.newBuyPlus）
+            try {
+                Long goodsStockResult = redisAdapter.decreaseStockWithLog(goodsStockKey, goodsStockLogKey, identifier, 1);
+                if (goodsStockResult == null || goodsStockResult < 0) {
+                    throw new RuntimeException("decrease stock failed, result=" + goodsStockResult);
+                }
+                log.info("热点商品-事务预扣减商品库存成功: activityId={}, goodsId={}, orderId={}, 剩余库存={}",
+                        activityId, goodsId, orderId, goodsStockResult);
+            } catch (Exception e) {
+                // Redis扣减失败时，查询流水检查是否真的失败（参考 NFTurbo）
+                // 如果流水存在，说明扣减成功（可能是网络延迟导致的假失败），继续执行
+                log.warn("热点商品-Redis扣减失败，查询流水检查: orderId={}, error={}", orderId, e.getMessage());
+                // 这里如果查询也失败，就只能旁路验证和对账来保证数据一致性
+                String goodsLogEntry = redisAdapter.getStockDecreaseLog(goodsStockLogKey, identifier);
+                if (goodsLogEntry == null) {
+                    // 流水不存在，说明真的扣减失败
+                    log.error("热点商品-Redis扣减失败且流水不存在，回滚: orderId={}", orderId);
+                    return LocalTransactionState.ROLLBACK_MESSAGE;
+                }
+                // 流水存在，说明扣减成功（假失败），继续执行
+                log.info("热点商品-Redis扣减失败但流水存在（假失败），继续执行: orderId={}", orderId);
             }
-            goodsStockDecreased = true;
-            log.info("热点商品-事务预扣减商品库存成功: activityId={}, goodsId={}, orderId={}, 剩余库存={}",
-                    activityId, goodsId, orderId, goodsStockResult);
 
-            // 2. 扣减数据库库存（在本地事务中同步执行）
-            boolean decreaseResult = skuRepository.decreaseSkuStock(activityId, goodsId, 1, orderId, userId);
-            if (!decreaseResult) {
-                log.error("热点商品-数据库库存扣减失败: orderId={}, activityId={}, goodsId={}", orderId, activityId, goodsId);
-                // 回滚 Redis 库存
-                rollbackGoodsStock(goodsStockKey, goodsStockLogKey, identifier, orderId);
-                return LocalTransactionState.ROLLBACK_MESSAGE;
-            }
-            dbStockDecreased = true;
-            log.info("热点商品-数据库库存扣减成功: orderId={}, activityId={}, goodsId={}", orderId, activityId, goodsId);
-
-            // 3. 创建订单（在本地事务中同步执行，不创建队伍）
+            // 2. 创建订单
             try {
                 tradeRepository.lockHotGoodsOrder(aggregate);
                 log.info("热点商品-订单创建成功: orderId={}", orderId);
                 
                 // 所有操作成功，提交事务
                 return LocalTransactionState.COMMIT_MESSAGE;
-            } catch (AppException e) {
-                log.warn("热点商品-订单创建失败，回滚所有库存: orderId={}, code={}", orderId, e.getCode());
-                // 回滚数据库库存
-                if (dbStockDecreased) {
-                    try {
-                        skuRepository.releaseSkuStock(activityId, goodsId, 1);
-                        log.info("热点商品-回滚数据库库存成功: orderId={}", orderId);
-                    } catch (Exception ex) {
-                        log.error("热点商品-回滚数据库库存失败: orderId={}", orderId, ex);
-                    }
+            } catch (Exception e) {
+                // 订单创建失败时，直接发送延迟消息，不查询数据库（参考 NFTurbo）
+                // 原因：可能存在"假失败"情况（订单实际已创建，但返回时网络超时/数据库异常）
+                // 延迟消息会在30秒后再次检查订单状态，如果订单存在则补偿，不存在则回滚
+                log.warn("热点商品-订单创建失败，发送延迟检查消息（疑似废单）: orderId={}, error={}", orderId, e.getMessage());
+                
+                // 发送延迟消息，检查发送结果
+                // 如果发送失败：
+                // 1. 记录错误日志（让运维知道）
+                // 2. 依赖定时任务 InventoryCompensateJob 兜底处理（每30秒执行一次）
+                // 3. 不能在这里直接回滚 Redis 库存，因为可能存在"假失败"情况（订单实际已创建）
+                boolean sendResult = messageProducer.sendDelayMessage(
+                        "hotGoodsOrderPreCancel-out-0",  // 使用正确的 bindingName（Producer）
+                        orderId,
+                        JSON.toJSONString(aggregate),
+                        StreamProducer.DELAY_LEVEL_30_S // 延迟30秒
+                );
+                
+                if (!sendResult) {
+                    // 发送延迟消息失败，记录错误日志
+                    // 依赖定时任务 InventoryCompensateJob 兜底处理：
+                    // - 定时任务会扫描 Redis 库存扣减流水
+                    // - 检查订单是否已落库
+                    // - 如果订单未落库，回滚 Redis 库存
+                    log.error("热点商品-发送延迟检查消息失败，依赖定时任务兜底处理: orderId={}, activityId={}, goodsId={}", 
+                            orderId, activityId, goodsId);
+                } else {
+                    log.info("热点商品-延迟检查消息发送成功: orderId={}, 将在30秒后检查订单状态", orderId);
                 }
-                // 回滚 Redis 库存
-                rollbackGoodsStock(goodsStockKey, goodsStockLogKey, identifier, orderId);
+                
+                // 注意：这里返回 ROLLBACK_MESSAGE，消息会被丢弃
+                // 但延迟消息会在30秒后检查订单状态，如果订单存在则补偿，不存在则回滚
+                // 如果发送延迟消息失败，依赖定时任务 InventoryCompensateJob 兜底处理
                 return LocalTransactionState.ROLLBACK_MESSAGE;
             }
         } catch (Exception e) {
             log.error("热点商品-RocketMQ 本地事务执行失败: orderId={}", 
                     aggregate != null ? aggregate.getOrderId() : "unknown", e);
             
-            // 异常时回滚所有已扣减的库存
-            if (aggregate != null) {
-                String userId = aggregate.getUserEntity().getUserId();
-                String orderId = aggregate.getOrderId();
-                Long activityId = aggregate.getPayActivityEntity().getActivityId();
-                String goodsId = aggregate.getPayDiscountEntity().getGoodsId();
-                
-                String identifier = buildIdentifier(userId, orderId);
-                String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
-                String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
-                
-                // 回滚数据库库存
-                if (dbStockDecreased) {
-                    try {
-                        skuRepository.releaseSkuStock(activityId, goodsId, 1);
-                    } catch (Exception ex) {
-                        log.error("热点商品-异常回滚数据库库存失败: orderId={}", orderId, ex);
-                    }
-                }
-                
-                // 回滚 Redis 库存
-                if (goodsStockDecreased) {
-                    rollbackGoodsStock(goodsStockKey, goodsStockLogKey, identifier, orderId);
-                }
-            }
-            
+            // 外层异常，直接回滚
             return LocalTransactionState.ROLLBACK_MESSAGE;
         }
     }
@@ -186,7 +170,7 @@ public class HotGoodsOrderCreateTransactionListener implements TransactionListen
             orderId = aggregate.getOrderId();
             String userId = aggregate.getUserEntity().getUserId();
 
-            // ⭐ 参考 NFTurbo：直接查询订单状态
+            // 参考 NFTurbo：直接查询订单状态
             MarketPayOrderEntity order = tradeRepository.queryMarketPayOrderEntityByOrderId(userId, orderId);
             
             if (order != null && TradeOrderStatusEnumVO.CREATE.equals(order.getTradeOrderStatusEnumVO())) {
@@ -219,23 +203,6 @@ public class HotGoodsOrderCreateTransactionListener implements TransactionListen
         }
     }
 
-    /**
-     * 回滚商品库存
-     */
-    private void rollbackGoodsStock(String goodsStockKey, String goodsStockLogKey, String identifier, String orderId) {
-        try {
-            String rollbackIdentifier = "ROLLBACK_" + identifier;
-            Long rollbackResult = redisAdapter.increaseStockWithLog(
-                    goodsStockKey,
-                    goodsStockLogKey,
-                    rollbackIdentifier,
-                    1
-            );
-            log.info("热点商品-回滚商品库存成功: orderId={}, 回滚后库存={}", orderId, rollbackResult);
-        } catch (Exception e) {
-            log.error("热点商品-回滚商品库存失败: orderId={}", orderId, e);
-        }
-    }
 
     private String buildIdentifier(String userId, String orderId) {
         return "DECREASE_" + userId + "_" + orderId;

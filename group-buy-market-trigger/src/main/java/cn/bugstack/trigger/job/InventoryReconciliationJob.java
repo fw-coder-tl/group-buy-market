@@ -159,14 +159,18 @@ public class InventoryReconciliationJob {
             
             if (dbLog == null) {
                 // 情况1：Redis 有流水，数据库无流水
-                // ⭐ 参考 NFTurbo：不一致时不删除 Redis 流水，只告警，等待补偿任务处理
+                // 参考 NFTurbo：不一致时不删除 Redis 流水，只告警，等待补偿任务处理
+                // NFTurbo 的做法：
+                // 1. 对账任务检测到"数据库流水缺失"时，只告警，不删除扣减流水
+                // 2. 补偿任务会检查订单是否已落库，如果未落库就回滚库存并删除扣减流水
+                // 3. 如果订单已落库，说明是假失败，补偿任务会删除扣减流水
                 log.error("对账不一致-数据库流水缺失: orderId={}, redisChange={}, identifier={}, logKey={}",
                         orderId, redisLog.getChangeAsInteger(), identifier, logKey);
                 // 不删除 Redis 流水，等待补偿任务处理（回滚库存或检查订单状态）
                 return ReconciliationResult.MISSING_DB;
             }
             
-            // 5. ⭐ 验证扣减数量一致性（防御性检查）
+            // 5. 验证扣减数量一致性（防御性检查）
             // 注意：在当前设计中，每次扣减都是 quantity=1，且有幂等性保护，数量应该总是一致的
             // 但保留此检查是为了：
             // 1. 防御性编程：防止未来代码变更（如支持批量扣减）导致的不一致

@@ -9,6 +9,7 @@ import cn.bugstack.domain.trade.model.entity.*;
 import cn.bugstack.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import cn.bugstack.domain.trade.model.vo.RedisStockLogVO;
 import cn.bugstack.domain.trade.service.IHotGoodsTradeService;
+import cn.bugstack.domain.trade.constant.MessageDelayLevel;
 import cn.bugstack.types.utils.SnowflakeIdUtil;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,8 @@ import java.util.concurrent.TimeUnit;
  * 3. 不扣减队伍库存
  * 4. 只扣减商品库存
  * 5. 高并发场景
+ *
+ * 如果是TCC方案，数据库操作会有6次操作，导致数据库CPU占用飙高
  * 
  * @author liang.tian
  */
@@ -66,7 +69,7 @@ public class HotGoodsTradeService implements IHotGoodsTradeService {
         log.info("热点商品下单-锁定订单: userId={}, activityId={}, goodsId={}", 
                 userEntity.getUserId(), payActivityEntity.getActivityId(), payDiscountEntity.getGoodsId());
 
-        // ⚠️ 优化：移除发送消息前的交易规则过滤，减少数据库查询压力
+        // 优化：移除发送消息前的交易规则过滤，减少数据库查询压力
         // 交易规则过滤（活动有效性、用户参与次数等）将在消息监听器的本地事务中执行
         // 这样可以先通过 Redis 和 MQ 进行流量拦截，减少数据库连接数和 CPU 压力
 
@@ -83,11 +86,8 @@ public class HotGoodsTradeService implements IHotGoodsTradeService {
                 .orderId(orderId)
                 .build();
 
-        // 3. 构建库存扣减标识
 
-        String identifier = buildIdentifier(userEntity.getUserId(), orderId);
-
-        // 4. 发送 RocketMQ 事务消息（本地事务中同步执行：Redis 扣减 + 数据库扣减 + 订单创建）
+        // 发送 RocketMQ 事务消息（本地事务中同步执行：Redis 扣减 + 订单创建）
         boolean sendResult = messageProducer.sendOrderCreateMessage(
                 HOT_GOODS_ORDER_CREATE_BINDING,
                 orderId,
@@ -100,7 +100,7 @@ public class HotGoodsTradeService implements IHotGoodsTradeService {
             throw new RuntimeException("订单创建失败");
         }
 
-        // 5. 查询订单状态（参考 NFTurbo newBuyPlus，只查询一次）
+        // 查询订单状态（参考 NFTurbo newBuyPlus，只查询一次）
         String userId = userEntity.getUserId();
         MarketPayOrderEntity order = repository.queryMarketPayOrderEntityByOrderId(userId, orderId);
         
@@ -108,20 +108,22 @@ public class HotGoodsTradeService implements IHotGoodsTradeService {
             // 订单已创建成功，执行旁路验证
             // 生成拼接流水前缀
             String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + payActivityEntity.getActivityId() + "_" + payDiscountEntity.getGoodsId();
+            // 构建库存扣减标识符
+            String identifier = buildIdentifier(userEntity.getUserId(), orderId);
             // 进行旁路验证
             bypassVerify(goodsStockLogKey, identifier, orderId, userId);
             return order;
         }
 
-        // 6. 如果查询不到订单，可能是网络延迟或数据库异常，发送延迟检查消息（疑似废单）
+        // 如果查询不到订单，可能是网络延迟或数据库异常，发送延迟检查消息（疑似废单）
         // 参考 NFTurbo：如果订单创建失败，发送 newBuyPlusPreCancel 延迟消息
         // 延迟检查：如果订单确实不存在，回滚库存；如果订单已创建（网络延迟），做补偿处理
         log.warn("订单查询失败，发送延迟检查消息（疑似废单）: orderId={}", orderId);
         messageProducer.sendDelayMessage(
-                "hotGoodsOrderPreCancel",
+                "hotGoodsOrderPreCancel-out-0",  // 使用正确的 bindingName（Producer）
                 orderId,
                 JSON.toJSONString(hotGoodsOrderAggregate),
-                1 // 延迟1分钟（RocketMQ delayLevel 1 = 1分钟）
+                MessageDelayLevel.DELAY_30_SECONDS // 延迟30秒
         );
         
         throw new RuntimeException("订单创建失败，已发送延迟检查消息");
