@@ -1,0 +1,35 @@
+dataSourceKey: defaultDS
+destination: example
+groupId: g1
+esMapping:
+  _index: group_buy_order_list
+  _type: _doc
+  _id: _id
+  upsert: true
+  pk: id
+  sql: |
+    SELECT
+      id as _id,
+      id,
+      user_id,
+      team_id,
+      order_id,
+      activity_id,
+      start_time,
+      end_time,
+      goods_id,
+      source,
+      channel,
+      original_price,
+      deduction_price,
+      pay_price,
+      status,
+      out_trade_no,
+      out_trade_time,
+      biz_id,
+      create_time,
+      update_time
+    FROM group_buy_order_list_2
+  etlCondition: "where update_time>={}"
+  commitBatch: 3000
+

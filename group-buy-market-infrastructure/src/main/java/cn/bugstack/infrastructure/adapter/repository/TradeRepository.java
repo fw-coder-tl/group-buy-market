@@ -76,7 +76,24 @@ public class TradeRepository implements ITradeRepository {
         GroupBuyOrderList groupBuyOrderListReq = new GroupBuyOrderList();
         groupBuyOrderListReq.setUserId(userId);
         groupBuyOrderListReq.setOutTradeNo(outTradeNo);
+        
+        // 1. 先查热数据表（分片表）
         GroupBuyOrderList groupBuyOrderListRes = groupBuyOrderListDao.queryGroupBuyOrderRecordByOutTradeNo(groupBuyOrderListReq);
+        
+        // 2. 如果热数据表不存在，再查归档表（冷热分离）
+        if (null == groupBuyOrderListRes) {
+            try {
+                // 注意：归档表查询需要手动指定分片表名，这里暂时使用全表扫描（归档表数据量相对较小）
+                // 如果归档表也做了分片，需要使用 ShardingUtil 计算分片表名
+                groupBuyOrderListRes = groupBuyOrderListDao.queryGroupBuyOrderRecordByOrderIdFromArchive(groupBuyOrderListReq);
+            } catch (Exception e) {
+                // 归档表可能不存在，记录日志但不抛出异常
+                log.warn("查询归档表失败（表可能不存在）: outTradeNo={}, userId={}, error={}", 
+                        outTradeNo, userId, e.getMessage());
+                return null;
+            }
+        }
+        
         if (null == groupBuyOrderListRes) return null;
 
         return MarketPayOrderEntity.builder()

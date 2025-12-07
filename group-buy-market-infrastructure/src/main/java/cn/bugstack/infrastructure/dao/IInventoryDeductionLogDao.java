@@ -16,12 +16,17 @@ public interface IInventoryDeductionLogDao {
     void insert(InventoryDeductionLog inventoryDeductionLog);
 
     /**
-     * 根据订单ID查询流水
+     * 根据订单ID查询流水（热数据表）
      */
     InventoryDeductionLog queryByOrderId(String orderId);
 
     /**
-     * 根据时间范围查询流水（用于对账）
+     * 从归档表根据订单ID查询流水（冷数据表）
+     */
+    InventoryDeductionLog queryByOrderIdFromArchive(String orderId);
+
+    /**
+     * 根据时间范围查询流水（用于对账，包含热数据和冷数据）
      */
     List<InventoryDeductionLog> queryByTimeRange(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 

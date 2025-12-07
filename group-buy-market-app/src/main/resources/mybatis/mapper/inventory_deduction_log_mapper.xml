@@ -36,6 +36,16 @@
                lock_version, status, create_time
         FROM inventory_deduction_log
         WHERE order_id = #{orderId}
+        <!-- ShardingSphere 会自动根据 user_id 路由到对应的分片表 -->
+    </select>
+
+    <select id="queryByOrderIdFromArchive" parameterType="java.lang.String" resultMap="dataMap">
+        SELECT id, order_id, user_id, activity_id, goods_id, quantity,
+               before_saleable, after_saleable, before_frozen, after_frozen,
+               lock_version, status, create_time
+        FROM inventory_deduction_log_archive
+        WHERE order_id = #{orderId}
+        LIMIT 1
     </select>
 
     <select id="queryByTimeRange" resultMap="dataMap">

@@ -43,6 +43,7 @@
         end_time, goods_id, source, channel, original_price, deduction_price, pay_price, status
         from group_buy_order_list
         where out_trade_no = #{outTradeNo} and user_id = #{userId}
+        <!-- ShardingSphere 会自动根据 user_id 路由到对应的分片表 -->
     </select>
 
     <select id="queryGroupBuyOrderRecordByOrderId"

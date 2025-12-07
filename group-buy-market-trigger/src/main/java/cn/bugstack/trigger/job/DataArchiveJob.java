@@ -104,6 +104,8 @@ public class DataArchiveJob {
         log.info("开始归档订单表，归档日期: {}", archiveDate);
         
         // 1. 查询需要归档的数据（使用SQL直接查询）
+        // 注意：如果启用了ShardingSphere，查询会自动路由到所有分片表
+        // 如果未启用ShardingSphere，查询单表
         List<java.util.Map<String, Object>> ordersToArchive = jdbcTemplate.queryForList(
             "SELECT id, user_id, team_id, order_id, activity_id, start_time, end_time, " +
             "goods_id, source, channel, original_price, deduction_price, pay_price, " +
@@ -146,8 +148,14 @@ public class DataArchiveJob {
                 }
                 
                 // 删除原表数据
+                // 注意：如果启用了ShardingSphere，删除会自动路由到对应的分片表
                 for (java.util.Map<String, Object> order : batch) {
-                    jdbcTemplate.update("DELETE FROM group_buy_order_list WHERE id = ?", order.get("id"));
+                    String userId = (String) order.get("user_id");
+                    // 使用 user_id 作为分片键，确保删除操作路由到正确的分片表
+                    jdbcTemplate.update(
+                        "DELETE FROM group_buy_order_list WHERE id = ? AND user_id = ?", 
+                        order.get("id"), userId
+                    );
                 }
                 
                 processedCount += batch.size();
@@ -199,6 +207,8 @@ public class DataArchiveJob {
         log.info("开始归档库存扣减流水表，归档日期: {}", archiveDate);
         
         // 1. 查询需要归档的数据（使用SQL直接查询）
+        // 注意：如果启用了ShardingSphere，查询会自动路由到所有分片表
+        // 如果未启用ShardingSphere，查询单表
         List<java.util.Map<String, Object>> logsToArchive = jdbcTemplate.queryForList(
             "SELECT id, order_id, user_id, activity_id, goods_id, quantity, " +
             "before_saleable, after_saleable, before_frozen, after_frozen, " +
@@ -240,8 +250,14 @@ public class DataArchiveJob {
                 }
                 
                 // 删除原表数据
+                // 注意：如果启用了ShardingSphere，删除会自动路由到对应的分片表
                 for (java.util.Map<String, Object> log : batch) {
-                    jdbcTemplate.update("DELETE FROM inventory_deduction_log WHERE id = ?", log.get("id"));
+                    String userId = (String) log.get("user_id");
+                    // 使用 user_id 作为分片键，确保删除操作路由到正确的分片表
+                    jdbcTemplate.update(
+                        "DELETE FROM inventory_deduction_log WHERE id = ? AND user_id = ?", 
+                        log.get("id"), userId
+                    );
                 }
                 
                 processedCount += batch.size();

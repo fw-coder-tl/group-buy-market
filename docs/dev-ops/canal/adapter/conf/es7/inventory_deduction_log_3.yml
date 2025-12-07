@@ -1,0 +1,29 @@
+dataSourceKey: defaultDS
+destination: example
+groupId: g1
+esMapping:
+  _index: inventory_deduction_log
+  _type: _doc
+  _id: _id
+  upsert: true
+  pk: id
+  sql: |
+    SELECT
+      id as _id,
+      id,
+      order_id,
+      user_id,
+      activity_id,
+      goods_id,
+      quantity,
+      before_saleable,
+      after_saleable,
+      before_frozen,
+      after_frozen,
+      lock_version,
+      status,
+      create_time
+    FROM inventory_deduction_log_3
+  etlCondition: "where create_time>={}"
+  commitBatch: 3000
+

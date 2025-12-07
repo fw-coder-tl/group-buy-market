@@ -3,3 +3,4 @@ spring:
     name: group-buy-market-app
   profiles:
     active: dev
+    include: sharding

@@ -1,0 +1,78 @@
+# ============================================
+# ShardingSphere 分表配置（单库分表）
+# ============================================
+# 说明：
+# 1. 只分表，不分库（在同一个数据库中创建4张表）
+# 2. 分表规则：Math.abs(user_id.hashCode()) % 4
+# 3. 适用于：group_buy_order_list（订单表）、inventory_deduction_log（库存流水表）
+# 4. 使用方式：在 application.yml 中通过 spring.profiles.include: sharding 启用
+
+spring:
+  shardingsphere:
+    # 数据源配置（单库）
+    datasource:
+      names: ds0
+      ds0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://127.0.0.1:13306/group_buy_market?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=true&sessionVariables=sql_mode='NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES'
+        username: root
+        password: 123456
+        hikari:
+          pool-name: Retail_HikariCP
+          minimum-idle: 30
+          maximum-pool-size: 100
+          idle-timeout: 60000
+          max-lifetime: 300000
+          connection-timeout: 30000
+          connection-test-query: SELECT 1
+    
+    # 分片规则配置
+    rules:
+      sharding:
+        # 分片表配置
+        tables:
+          # 订单表分片配置（只分表，不分库）
+          group_buy_order_list:
+            # 实际数据节点：单库，4张表
+            actual-data-nodes: ds0.group_buy_order_list_$->{0..3}
+            # 分表策略
+            table-strategy:
+              standard:
+                sharding-column: user_id
+                sharding-algorithm-name: order-table-inline
+          
+          # 库存扣减流水表分片配置（只分表，不分库）
+          inventory_deduction_log:
+            # 实际数据节点：单库，4张表
+            actual-data-nodes: ds0.inventory_deduction_log_$->{0..3}
+            # 分表策略
+            table-strategy:
+              standard:
+                sharding-column: user_id
+                sharding-algorithm-name: inventory-table-inline
+        
+        # 分片算法配置
+        sharding-algorithms:
+          # 订单表分表算法
+          order-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: group_buy_order_list_$->{Math.abs(user_id.hashCode()) % 4}
+          # 库存流水表分表算法
+          inventory-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: inventory_deduction_log_$->{Math.abs(user_id.hashCode()) % 4}
+    
+    # 属性配置
+    props:
+      # 显示SQL（开发环境可以开启，生产环境关闭）
+      sql-show: false
+      # 是否允许范围查询（跨分片查询）
+      sql-simple: false
+      # 执行线程数
+      executor-size: 16
+      # 最大连接数
+      max-connections-size-per-query: 1
+
