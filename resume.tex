@@ -12,7 +12,7 @@
 	left=0.2in,
 	right=0.2in,
 	top=0.4in,
-	bottom=0.4in,
+	bottom=0.2in,
 	nohead
 } % 减少页边距
 
@@ -23,10 +23,10 @@
 
 
 \basicInfo{
-  \email{liang.tian979@gmail.com} \textperiodcentered\ 
-  \phone{(+86) 151-9594-2745} \textperiodcentered\ 
+  \email{liang.tian979@gmail.com} \textperiodcentered\
+  \phone{(+86) 151-9594-2745} \textperiodcentered\
   \faGithub\ \href{https://github.com/fw-coder-tl}{https://github.com/fw-coder-tl}}
- 
+
 \section{\faGraduationCap\  教育背景 }
 \datedsubsection{\textbf{河海大学}\quad 211 双一流 \hfill \textit{软件工程（本科）}}{2023-09 -- 2027-07}
 语言能力: CET-4、CET-6
@@ -35,49 +35,40 @@
 % increase linespacing [parsep=0.5ex]
 \begin{itemize}[parsep=0.5ex]
   \item \textbf{操作系统}：熟悉操作系统的相关理论，如内存管理、进程通信等，熟悉Select、Poll、Epoll等模型原理。
-  \item \textbf{计算机网络}：熟悉计算机网络基础知识，如TCP、UDP、HTTPS等协议、TCP连接原理、流量控制、拥塞控制等。
+  \item \textbf{计算机网络}：熟悉计算机网络基础知识，如TCP连接、网络收包发包等底层原理、流量控制、拥塞控制等。
   \item \textbf{MySQL}：熟悉MySQL使用及原理，如索引、事务、锁、日志等，具有数据库以及SQL调优经验。
-  \item \textbf{Redis}：熟悉Redis核心数据结构、数据持久化、数据过期、内存淘汰等原理，以及深入理解Redis高可用架构。
-  \item \textbf{JVM}：熟悉JVM底层原理，如类加载、垃圾回收算法、JVM垃圾回收器等。
+  \item \textbf{Redis}：熟悉Redis核心数据结构、持久化、数据过期、内存淘汰等原理，掌握如何解决缓存穿透、雪崩、击穿问题。
+  \item \textbf{JVM}：熟悉JVM底层原理，如类加载机制、垃圾回收算法、JVM垃圾回收器等。
   \item \textbf{并发编程}：熟悉JUC并发工具的使用和原理，如线程池、锁等，以及深入理解JMM、线程安全知识。
-  \item \textbf{Spring}：熟练使用SpringBoot进行Web后端开发，熟悉部分原理，如IOC、AOP等
-  \item \textbf{消息队列}：熟悉RabbitMQ、RocketMQ消息中间件的使用，在项目中解决过重复消费等问题。
+  \item \textbf{Spring}：熟练使用SpringBoot进行Web后端开发，熟悉IOC、AOP等核心原理。
+  \item \textbf{消息队列}：熟悉RocketMQ、Kafka消息中间件的使用，在项目中解决过重复消费、消息堆积等问题。
+  \item \textbf{AI}：熟悉大语言模型应用开发，掌握Spring AI、RAG检索增强生成、MCP工具调用、Agent智能体架构设计。
+  \item \textbf{设计模式}：深入理解责任链模式、策略模式、工厂模式等，能够灵活运用设计模式解决复杂业务问题。
 \end{itemize}
-
-\section{\faUsers\ 实习/项目经历}
-\datedsubsection{\textbf{金仕达软件科技有限公司} }{2025年9月 -- 至今}
-java后端开发
-\begin{itemize}
-  \item 实现了 xxx 特性
-  \item 后台资源占用率减少8\%
-  \item xxx
-\end{itemize}
-
 \section{\faCode\ 项目经历}
 
-\datedsubsection{\textbf{GroupBuy-Market}—基于高并发秒杀拼团交易系统}{2025年5月 -- 2025年10月}
-\textbf{项目描述:}基于DDD架构的拼团秒杀电商平台,支持高并发拼团、秒杀、优惠试算等核心业务。平台面向C端用户提供拼团购买、限时秒杀等营销活动,支持多商品、多活动并发场景。可实现单日最高交易量15W+,峰值QPS 700+。\\
-\textbf{技术栈:} \textit{Spring Boot、MySQL、Redis、RocketMQ、ELK、XxlJob、ShardingSphere}
+\datedsubsection{\textbf{AI-Agent-Station}—基于多Client协作的智能体决策执行系统}{2025年6月 -- 2025年11月}
+\textbf{项目描述:}面向企业级AI应用场景，设计并实现基于DDD架构的智能体决策执行平台。通过构建多个专业化Client（分析、执行、监督）实现任务分解、决策分析和精准执行，结合RAG知识库提供领域知识增强，解决传统AI应用在复杂任务处理中缺乏上下文记忆、无法多轮迭代优化的问题。已应用于智能客服、代码生成、数据分析等场景。\\
+\textbf{技术栈:} \textit{Spring Boot、Spring AI、MCP、Redis、Elasticsearch、Kafka、MinIO}
 \begin{itemize}
-  \item 独立完成用户订单超时数据处理，实现订单数据热冷分离，提升数据库读写性能
-  \item 设计并实现责任链模式+规则引擎架构,通过工厂模式动态组装交易规则、结算规则、退单规则过滤链,支持规则树结构和规则可配置化,提升业务规则处理的灵活性和可维护性
-  \item 使用Redis预扣减+MQ事务消息异步处理+MySQL乐观锁实现库存秒杀QPS100到QPS 700，解决超卖问题。旁路检测+定时任务、Redis和数据库流水+XxlJob对账严格保障数据的一致性
-  \item 利用HotKey热点检测+二级缓存预热，实时识别Top20热门藏品并预热至边缘节点，优化详情页加载速度从1.2s至200ms
-  \item 搭建ELK日志分析平台，同时集成 Prometheus + Grafana 监控体系，实现日志、指标、链路追踪的统一可观测性平台，并且结合Arthas，定位问题效率提升 60 \%以上
+  \item 设计基于责任链模式的 Agent 执行链路架构，构建 Agent 完整链路，通过 Armory 装配服务动态加载不同角色的ChatClient，采用工厂模式 + 策略模式实现 Client 热更新，支持业务场景灵活组合，代码复用率显著提升。
+  \item 集成RAG检索增强生成，设计RagAnswerAdvisor作为Advisor链前置处理器，在ChatClient调用前进行向量检索。通过Elasticsearch存储文档向量，结合KNN 向量召回与BM25重排序，实现“关键词+语义”的双引擎检索。
+  \item 基于Kafka解耦文件上传、处理与向量化流程，实现文件分片上传与断点续传，实现系统削峰，单文档处理耗时从 5s 优化至 200ms。
+  \item 实现流式响应（SSE）和动态上下文管理，通过ResponseBodyEmitter实时推送各阶段结果，集成SpringAIChat-Memory实现上下文持久化。通过流式输出将首响应时间从3s优化至0.5s，用户等待感知时间显著降低。
+  \item 实现执行策略的可插拔设计，支持AutoAgent（自动多轮迭代）、FixedAgent（固定流程）、FlowAgent（流程编排）三种模式，通过策略模式实现动态选择，满足不同业务场景需求。
 \end{itemize}
 
-\datedsubsection{\textbf{GroupBuy-Market}—基于高并发拼团交易系统}{2025年5月 -- 2024年10月}
-\textbf{项目描述:}基于DDD架构的拼团秒杀电商平台,支持高并发拼团、秒杀、优惠试算等核心业务。平台面向C端用户提供拼团购买、限时秒杀、优惠券使用等营销活动,支持多商品、多活动并发场景。单日最高交易量15W+,峰值QPS 800+。\\
-\textbf{技术栈:} Spring Boot、MySQL、Redis、RocketMQ、ELK、
+\datedsubsection{\textbf{GroupBuy-Market}—基于高并发秒杀拼团交易系统}{2024年10月 -- 2025年3月}
+\textbf{项目描述:}基于DDD架构的拼团秒杀电商平台，支持高并发拼团、秒杀、优惠试算等核心业务。平台面向C端用户提供拼团购买、限时秒杀等营销活动，支持多商品、多活动并发场景。\\
+\textbf{技术栈:} \textit{Spring Boot、MySQL、Redis、RocketMQ、XxlJob、ShardingSphere、ELK Stack}
 \begin{itemize}
-  \item 独立完成用户订单超时数据处理，实现订单数据热冷分离，提升数据库读写性能
-  \item 排查并解决信息同步系统RocketMQ百万级数据消息堆积和消息重复消费问题
-  \item 重写ShardingSphere和SnakeYaml源码解决Seata集成兼容问题；修改Canal源码解决藏品同步异常时间转换问题
-  \item 使用Redis预扣减+MQ异步处理+MySQL乐观锁实现藏品秒杀TPS 700，解决超卖问题
-  \item 参与系统网关模块开发，使用对称和非对称加密算法实现网关数字签名和URL动态加密机制
-  \item 利用HotKey热点检测+二级缓存预热，实时识别Top20热门藏品并预热至边缘节点，优化详情页加载速度从1.2s至200ms
-  \item 独立完成项目支付模块开发，实现多渠道支付对接，解决开发过程中支付幂等性和Seata事务失败问题
+  \item 设计并实现责任链模式+规则引擎架构，通过工厂模式动态组装交易规则、结算规则、退单规则过滤链，支持规则树结构和规则可配置化，提升业务规则处理的灵活性和可维护性。
+  \item 完成订单超时的数据处理，对订单数据进行分库分表、冷热分离，提高数据库的读写性能。
+  \item 基于Redis pub/sub模式，结合自定义注解和BeanPostProcessor实现轻量级配置中心，支持限流阈值、降级开关、人群黑白名单的热更新，实现了生产环境的无感发布与动态切量。
+  \item 参考JDHotKey开源项目，设计并实现HotKey热点探测与动态路由系统：采用Filter拦截器+本地缓存（Cafeine）+Redis二级缓存架构，实现热点商品毫秒级实时探测，通过规则匹配引擎和异步上报机制实现热点识别；设计动态路由策略，根据商品热度自动路由到秒杀/普通拼团接口。
+  \item 设计并实现高并发秒杀库存扣减方案：采用Redis预扣减+MQ事务消息异步处理+MySQL乐观锁四层保障，实现库存秒杀QPS从100提升至700+，解决超卖问题。设计旁路检测机制和流水对账补偿任务，通过XxlJob定时任务对比Redis与MySQL库存差异，自动修复数据不一致问题，有效应对网络抖动、服务重启、消息丢失等异常场景。
 \end{itemize}
+
 
 
 
