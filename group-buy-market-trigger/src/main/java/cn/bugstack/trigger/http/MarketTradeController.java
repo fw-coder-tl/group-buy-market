@@ -13,9 +13,9 @@ import cn.bugstack.domain.trade.model.valobj.NotifyTypeEnumVO;
 import cn.bugstack.domain.trade.service.ITradeLockOrderService;
 import cn.bugstack.domain.trade.service.ITradeRefundOrderService;
 import cn.bugstack.domain.trade.service.ITradeSettlementOrderService;
-import cn.bugstack.domain.trade.service.detector.IHotKeyDetector;
 import cn.bugstack.domain.trade.service.IHotGoodsTradeService;
 import cn.bugstack.domain.trade.service.INormalGoodsTradeService;
+import cn.bugstack.infrastructure.hotkey.IHotKeyDetector;
 import cn.bugstack.types.enums.ResponseCode;
 import cn.bugstack.types.exception.AppException;
 import com.alibaba.fastjson.JSON;
@@ -24,7 +24,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * @author liang.tian
@@ -89,9 +92,17 @@ public class MarketTradeController implements IMarketTradeService {
                         .build();
             }
 
-            // 根据 hotkey 判断商品类型（提前判断，用于后续逻辑）
-            //boolean isHotGoods = hotKeyDetector.isHotGoods(activityId, goodsId);
-            Boolean isHotGoods = true;
+            // 从 RequestContextHolder 获取当前请求
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+            
+            // 根据 hotkey 判断商品类型（从Filter/Interceptor中获取路由标识）
+            // 优先从Request属性中获取（由HotKeyRoutingFilter设置）
+            Boolean isHotGoods = (Boolean) request.getAttribute("isHotGoods");
+            if (isHotGoods == null) {
+                // 如果Filter未设置，则实时检测（兜底逻辑）
+                isHotGoods = hotKeyDetector.isHotGoods(activityId, goodsId);
+                log.debug("实时HotKey检测: activityId={}, goodsId={}, isHotGoods={}", activityId, goodsId, isHotGoods);
+            }
 
             // 查询 outTradeNo 是否已经存在交易记录
             // todo (可以选择redis进行快速查询，避免数据库查询)

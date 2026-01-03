@@ -1,0 +1,37 @@
+# HotKey 基础设施 Docker Compose 配置
+# 包含：etcd（HotKey 配置中心）
+#
+# 注意：HotKey Worker 和 Dashboard 建议使用 jar 包方式启动
+# 因为它们需要本地编译，且配置较复杂
+#
+# 使用方法：
+# 1. 启动 etcd: docker-compose -f docker-compose-hotkey.yml up -d
+
+services:
+  # etcd - HotKey 配置中心
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: hotkey-etcd
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_NAME=etcd0
+      - ETCD_ADVERTISE_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_CLUSTER=etcd0=http://0.0.0.0:2380
+    volumes:
+      - etcd_data:/etcd-data
+    networks:
+      - hotkey-network
+    restart: unless-stopped
+
+volumes:
+  etcd_data:
+
+networks:
+  hotkey-network:
+    driver: bridge

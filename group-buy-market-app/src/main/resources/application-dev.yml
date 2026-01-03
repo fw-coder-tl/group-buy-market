@@ -219,6 +219,14 @@ management:
   prometheus:
     enabled: true # 启用Prometheus端点
 
+# JD HotKey 配置 - 热点探测框架
+hotkey:
+  etcd:
+    server: http://127.0.0.1:2379
+  app-name: group-buy-market
+  caffeine-size: 50000
+  push-period: 500
+
 # XXL-Job 配置（参考 NFTurbo）
 xxl:
   job:

@@ -539,6 +539,109 @@ public class TradeRepository implements ITradeRepository {
     }
 
     /**
+     * 同步模式：直接创建已确认状态的订单（参考 NFTurbo 设计）
+     * 
+     * 与 tryOrder 的区别：直接创建 CONFIRM 状态，不需要后续确认
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MarketPayOrderEntity createConfirmedOrder(NormalGoodsOrderAggregate normalGoodsOrderAggregate) {
+        // 聚合对象信息
+        UserEntity userEntity = normalGoodsOrderAggregate.getUserEntity();
+        PayActivityEntity payActivityEntity = normalGoodsOrderAggregate.getPayActivityEntity();
+        PayDiscountEntity payDiscountEntity = normalGoodsOrderAggregate.getPayDiscountEntity();
+        NotifyConfigVO notifyConfigVO = payDiscountEntity.getNotifyConfigVO();
+        Integer userTakeOrderCount = normalGoodsOrderAggregate.getUserTakeOrderCount();
+
+        // 判断是否有团 - teamId 为空 - 新团、为不空 - 老团
+        String teamId = normalGoodsOrderAggregate.getTeamId();
+        if (StringUtils.isBlank(teamId)) {
+            // 使用 RandomStringUtils.randomNumeric 替代公司里使用的雪花算法UUID
+            teamId = RandomStringUtils.randomNumeric(8);
+
+            // 构建拼团订单
+            GroupBuyOrder groupBuyOrder = GroupBuyOrder.builder()
+                    .teamId(teamId)
+                    .activityId(payActivityEntity.getActivityId())
+                    .source(payDiscountEntity.getSource())
+                    .channel(payDiscountEntity.getChannel())
+                    .originalPrice(payDiscountEntity.getOriginalPrice())
+                    .deductionPrice(payDiscountEntity.getDeductionPrice())
+                    .payPrice(payDiscountEntity.getPayPrice())
+                    .targetCount(normalGoodsOrderAggregate.getTargetCount() != null ? normalGoodsOrderAggregate.getTargetCount() : payActivityEntity.getTargetCount())
+                    .completeCount(0)
+                    .lockCount(1)
+                    .validStartTime(payActivityEntity.getStartTime())
+                    .validEndTime(payActivityEntity.getEndTime())
+                    .notifyType(notifyConfigVO.getNotifyType().getCode())
+                    .notifyUrl(notifyConfigVO.getNotifyUrl())
+                    .build();
+
+            // 写入记录
+            groupBuyOrderDao.insert(groupBuyOrder);
+        } else {
+            // 更新记录 - 如果更新记录不等于1，则表示拼团已满
+            // 同步模式下，Redis 已经扣减成功，使用强制更新
+            int updateAddTargetCount = groupBuyOrderDao.updateAddLockCount(teamId);
+            if (1 != updateAddTargetCount) {
+                if (normalGoodsOrderAggregate.getRedisStockDecreased() != null && 
+                    normalGoodsOrderAggregate.getRedisStockDecreased()) {
+                    log.warn("同步模式-数据库显示队伍已满，使用强制更新: teamId={}", teamId);
+                    updateAddTargetCount = groupBuyOrderDao.updateAddLockCountForce(teamId);
+                    if (1 != updateAddTargetCount) {
+                        throw new AppException(ResponseCode.E0005);
+                    }
+                } else {
+                    throw new AppException(ResponseCode.E0005);
+                }
+            }
+        }
+
+        // 日期处理
+        Date currentDate = new Date();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(currentDate);
+        calendar.add(Calendar.MINUTE, payActivityEntity.getValidTime());
+
+        String orderId = normalGoodsOrderAggregate.getOrderId();
+        GroupBuyOrderList groupBuyOrderListReq = GroupBuyOrderList.builder()
+                .userId(userEntity.getUserId())
+                .teamId(teamId)
+                .orderId(orderId)
+                .activityId(payActivityEntity.getActivityId())
+                .startTime(currentDate)
+                .endTime(calendar.getTime())
+                .goodsId(payDiscountEntity.getGoodsId())
+                .source(payDiscountEntity.getSource())
+                .channel(payDiscountEntity.getChannel())
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .status(TradeOrderStatusEnumVO.CONFIRM.getCode()) // 直接创建 CONFIRM 状态
+                .outTradeNo(payDiscountEntity.getOutTradeNo())
+                .bizId(payActivityEntity.getActivityId() + Constants.UNDERLINE + userEntity.getUserId() + Constants.UNDERLINE + (userTakeOrderCount + 1))
+                .build();
+        try {
+            // 写入订单记录（状态为 CONFIRM）
+            groupBuyOrderListDao.insert(groupBuyOrderListReq);
+        } catch (DuplicateKeyException e) {
+            throw new AppException(ResponseCode.E0006);
+        }
+
+        log.info("同步模式-创建已确认订单成功: orderId={}, teamId={}", orderId, teamId);
+
+        // 返回订单实体
+        return MarketPayOrderEntity.builder()
+                .teamId(teamId)
+                .orderId(orderId)
+                .originalPrice(payDiscountEntity.getOriginalPrice())
+                .deductionPrice(payDiscountEntity.getDeductionPrice())
+                .payPrice(payDiscountEntity.getPayPrice())
+                .tradeOrderStatusEnumVO(TradeOrderStatusEnumVO.CONFIRM)
+                .build();
+    }
+
+    /**
      * TCC Cancel：取消订单（将订单状态改为 CANCEL）
      * 
      * 对标 NFTurbo 的 cancelOrder

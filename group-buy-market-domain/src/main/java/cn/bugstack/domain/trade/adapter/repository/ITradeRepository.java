@@ -70,6 +70,14 @@ public interface ITradeRepository {
      */
     boolean cancelOrder(String orderId);
 
+    /**
+     * 同步模式：直接创建已确认状态的订单（参考 NFTurbo 设计）
+     * 
+     * @param normalGoodsOrderAggregate 普通商品订单聚合对象
+     * @return 订单实体
+     */
+    MarketPayOrderEntity createConfirmedOrder(NormalGoodsOrderAggregate normalGoodsOrderAggregate);
+
     GroupBuyProgressVO queryGroupBuyProgress(String teamId);
 
     GroupBuyActivityEntity queryGroupBuyActivityEntityByActivityId(Long activityId);

@@ -245,6 +245,134 @@ public class NormalGoodsTradeService implements INormalGoodsTradeService {
     }
 
     /**
+     * 同步锁定普通商品订单（参考 NFTurbo 设计）
+     * 
+     * 流程：
+     * 1. Redis 预扣减库存
+     * 2. 同步 DB 扣减库存（带流水，保证幂等）
+     * 3. 同步创建订单
+     * 4. 失败时回滚 Redis 库存
+     * 
+     * @param userEntity 用户实体
+     * @param payActivityEntity 活动实体
+     * @param payDiscountEntity 优惠实体
+     * @return 订单实体
+     */
+    @Override
+    public MarketPayOrderEntity lockNormalGoodsOrderSync(UserEntity userEntity, PayActivityEntity payActivityEntity, PayDiscountEntity payDiscountEntity) throws Exception {
+        log.info("普通商品下单（同步模式）-开始: userId={}, activityId={}, goodsId={}, teamId={}", 
+                userEntity.getUserId(), payActivityEntity.getActivityId(), payDiscountEntity.getGoodsId(), payActivityEntity.getTeamId());
+
+        // 1. 交易规则过滤（包含拼团相关过滤）
+        TradeLockRuleFilterBackEntity tradeLockRuleFilterBackEntity = normalGoodsTradeRuleFilter.apply(
+                TradeLockRuleCommandEntity.builder()
+                        .activityId(payActivityEntity.getActivityId())
+                        .userId(userEntity.getUserId())
+                        .teamId(payActivityEntity.getTeamId())
+                        .goodsId(payDiscountEntity.getGoodsId())
+                        .build(),
+                new TradeLockRuleFilterFactory.DynamicContext()
+        );
+
+        Integer userTakeOrderCount = tradeLockRuleFilterBackEntity.getUserTakeOrderCount();
+        Integer targetCount = tradeLockRuleFilterBackEntity.getTargetCount();
+        String orderId = SnowflakeIdUtil.nextIdStr();
+        String teamId = payActivityEntity.getTeamId();
+        Long activityId = payActivityEntity.getActivityId();
+        String goodsId = payDiscountEntity.getGoodsId();
+
+        // 2. 构建 Redis Key
+        String identifier = buildIdentifier(userEntity.getUserId(), orderId);
+        String goodsStockKey = GOODS_STOCK_KEY_PREFIX + activityId + "_" + goodsId;
+        String goodsStockLogKey = GOODS_STOCK_LOG_KEY_PREFIX + activityId + "_" + goodsId;
+        String teamStockKey = null;
+        String teamStockLogKey = null;
+        if (teamId != null && !teamId.trim().isEmpty() && targetCount != null && targetCount > 0) {
+            teamStockKey = TEAM_STOCK_KEY_PREFIX + activityId + "_" + teamId;
+            teamStockLogKey = TEAM_STOCK_LOG_KEY_PREFIX + activityId + "_" + teamId;
+        }
+
+        boolean redisStockDecreased = false;
+
+        try {
+            // 3. Redis 预扣减库存（同时扣减商品库存和增加队伍人数）
+            IRedisAdapter.StockDecreaseResult stockResult = redisAdapter.decreaseGoodsStockAndIncreaseTeamStock(
+                    goodsStockKey, goodsStockLogKey,
+                    teamStockKey, teamStockLogKey,
+                    identifier, 1, targetCount != null ? targetCount : 0
+            );
+            
+            if (!stockResult.isSuccess()) {
+                String errorCode = stockResult.getErrorCode();
+                if ("TEAM_FULL".equals(errorCode)) {
+                    log.warn("普通商品下单（同步模式）-Redis扣减失败-队伍已满: orderId={}, teamId={}", orderId, teamId);
+                    throw new RuntimeException("队伍已满");
+                } else if ("GOODS_STOCK_NOT_ENOUGH".equals(errorCode)) {
+                    log.warn("普通商品下单（同步模式）-Redis扣减失败-商品库存不足: orderId={}", orderId);
+                    throw new RuntimeException("商品库存不足");
+                } else {
+                    log.warn("普通商品下单（同步模式）-Redis扣减失败: orderId={}, errorCode={}", orderId, errorCode);
+                    throw new RuntimeException("Redis扣减失败: " + errorCode);
+                }
+            }
+            
+            redisStockDecreased = true;
+            Long redisTeamCurrentCount = stockResult.getTeamCurrentCount();
+            log.info("普通商品下单（同步模式）-Redis扣减成功: orderId={}, 商品剩余库存={}, 队伍当前人数={}/{}",
+                    orderId, stockResult.getGoodsRemainingStock(), redisTeamCurrentCount, targetCount);
+
+            // 4. 同步 DB 扣减库存（带流水，保证幂等）
+            boolean dbDecreaseResult = skuRepository.decreaseSkuStock(
+                    activityId,
+                    goodsId,
+                    1,
+                    orderId,
+                    userEntity.getUserId()
+            );
+            
+            if (!dbDecreaseResult) {
+                log.error("普通商品下单（同步模式）-DB扣减失败: orderId={}", orderId);
+                throw new RuntimeException("DB库存扣减失败");
+            }
+            log.info("普通商品下单（同步模式）-DB扣减成功: orderId={}", orderId);
+
+            // 5. 同步创建订单（直接创建 CONFIRM 状态的订单）
+            NormalGoodsOrderAggregate normalGoodsOrderAggregate = NormalGoodsOrderAggregate.builder()
+                    .userEntity(userEntity)
+                    .payActivityEntity(payActivityEntity)
+                    .payDiscountEntity(payDiscountEntity)
+                    .userTakeOrderCount(userTakeOrderCount)
+                    .orderId(orderId)
+                    .teamId(teamId)
+                    .targetCount(targetCount)
+                    .redisStockDecreased(true)
+                    .redisTeamCurrentCount(redisTeamCurrentCount)
+                    .build();
+
+            // 创建已确认状态的订单
+            MarketPayOrderEntity order = repository.createConfirmedOrder(normalGoodsOrderAggregate);
+            if (order == null) {
+                log.error("普通商品下单（同步模式）-订单创建失败: orderId={}", orderId);
+                throw new RuntimeException("订单创建失败");
+            }
+
+            log.info("普通商品下单（同步模式）-成功: orderId={}, status={}", orderId, order.getTradeOrderStatusEnumVO());
+            return order;
+
+        } catch (Exception e) {
+            log.error("普通商品下单（同步模式）-失败: orderId={}, error={}", orderId, e.getMessage(), e);
+            
+            // 回滚 Redis 库存
+            if (redisStockDecreased) {
+                log.warn("普通商品下单（同步模式）-回滚Redis库存: orderId={}", orderId);
+                rollbackRedisStock(goodsStockKey, goodsStockLogKey, teamStockKey, teamStockLogKey, identifier, orderId);
+            }
+            
+            throw e;
+        }
+    }
+
+    /**
      * 构建库存扣减标识符
      */
     private String buildIdentifier(String userId, String orderId) {
